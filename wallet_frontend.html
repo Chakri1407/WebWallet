@@ -19,7 +19,7 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
@@ -173,6 +173,15 @@
             background: #e0a800;
         }
 
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+        }
+
         .wallet-info {
             background: #f8f9fa;
             border-radius: 8px;
@@ -208,6 +217,24 @@
         .balance-label {
             font-size: 0.9rem;
             opacity: 0.9;
+        }
+
+        .token-balance-box {
+            background: #e3f2fd;
+            border: 2px solid #2196f3;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .token-balance-box h4 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .token-info {
+            font-size: 14px;
+            margin-bottom: 5px;
         }
 
         .result-box {
@@ -275,6 +302,10 @@
             display: block;
         }
 
+        .full-width-card {
+            grid-column: 1 / -1;
+        }
+
         @media (max-width: 768px) {
             .wallet-grid {
                 grid-template-columns: 1fr;
@@ -290,7 +321,7 @@
     <div class="container">
         <div class="header">
             <h1>Multi-Chain Wallet Tester</h1>
-            <p>Test Bitcoin and Cronos wallet operations in a single interface</p>
+            <p>Test Bitcoin and Cronos wallet operations with ERC20 token support</p>
         </div>
 
         <div class="wallet-grid">
@@ -377,7 +408,8 @@
                 <div class="tabs">
                     <div class="tab active" onclick="switchTab('cro', 'generate')">Generate</div>
                     <div class="tab" onclick="switchTab('cro', 'import')">Import</div>
-                    <div class="tab" onclick="switchTab('cro', 'send')">Send</div>
+                    <div class="tab" onclick="switchTab('cro', 'send')">Send CRO</div>
+                    <div class="tab" onclick="switchTab('cro', 'token')">ERC20</div>
                 </div>
 
                 <!-- Cronos Generate Tab -->
@@ -415,7 +447,7 @@
                         <h3>Send CRO</h3>
                         <div class="form-group">
                             <label>To Address</label>
-                            <input type="text" id="cro-to-address" placeholder="0x..." value="0xe8239aFA5Cc7Ec80d27713A60D2E50facbeA3BC0">
+                            <input type="text" id="cro-to-address" placeholder="0x...">
                         </div>
                         <div class="form-group">
                             <label>Amount (CRO)</label>
@@ -423,6 +455,38 @@
                         </div>
                         <button class="btn btn-success" onclick="sendCronos()">Send CRO</button>
                         <button class="btn btn-warning" onclick="checkCronosBalance()">Check Balance</button>
+                    </div>
+                </div>
+
+                <!-- Cronos ERC20 Token Tab -->
+                <div id="cro-token" class="tab-content">
+                    <div class="section">
+                        <h3>Import ERC20 Token</h3>
+                        <div class="form-group">
+                            <label>Token Contract Address</label>
+                            <input type="text" id="token-address" placeholder="0x...">
+                        </div>
+                        <button class="btn btn-info" onclick="importToken()">Get Token Info</button>
+                        <button class="btn btn-warning" onclick="checkTokenBalance()">Check Balance</button>
+                        
+                        <div id="token-info-box" style="display: none;" class="token-balance-box">
+                            <h4>Token Information</h4>
+                            <div class="token-info"><strong>Name:</strong> <span id="token-name">-</span></div>
+                            <div class="token-info"><strong>Symbol:</strong> <span id="token-symbol">-</span></div>
+                            <div class="token-info"><strong>Decimals:</strong> <span id="token-decimals">-</span></div>
+                            <div class="token-info"><strong>Balance:</strong> <span id="token-balance">0</span> <span id="token-balance-symbol">-</span></div>
+                        </div>
+                        
+                        <h3 style="margin-top: 20px;">Send ERC20 Tokens</h3>
+                        <div class="form-group">
+                            <label>To Address</label>
+                            <input type="text" id="token-to-address" placeholder="0x...">
+                        </div>
+                        <div class="form-group">
+                            <label>Amount</label>
+                            <input type="number" id="token-amount" step="0.000001" placeholder="10.0">
+                        </div>
+                        <button class="btn btn-success" onclick="sendToken()">Send Tokens</button>
                     </div>
                 </div>
 
@@ -440,26 +504,27 @@
 
                 <div id="cro-result" class="result-box" style="display: none;"></div>
             </div>
-        </div>
 
-        <!-- Faucet Information -->
-        <div class="wallet-card">
-            <h3>Testnet Faucets</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div>
-                    <h4>Bitcoin Testnet Faucets</h4>
-                    <ul>
-                        <li><a href="https://bitcoinfaucet.uo1.net/" target="_blank">Bitcoin Faucet</a> - 0.001 BTC</li>
-                        <li><a href="https://testnet-faucet.mempool.co/" target="_blank">Mempool Faucet</a> - 0.01 BTC</li>
-                        <li><a href="https://coinfaucet.eu/en/btc-testnet/" target="_blank">CoinFaucet</a> - 0.001 BTC</li>
-                    </ul>
-                </div>
-                <div>
-                    <h4>Cronos Testnet Faucet</h4>
-                    <ul>
-                        <li><a href="https://cronos.org/faucet" target="_blank">Cronos Faucet</a> - 100 CRO (24h cooldown)</li>
-                        <li>Requires Twitter account verification</li>
-                    </ul>
+            <!-- Faucet Information -->
+            <div class="wallet-card full-width-card">
+                <h3>Testnet Faucets & Resources</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <h4>Bitcoin Testnet Faucets</h4>
+                        <ul>
+                            <li><a href="https://bitcoinfaucet.uo1.net/" target="_blank">Bitcoin Faucet</a> - 0.001 BTC</li>
+                            <li><a href="https://testnet-faucet.mempool.co/" target="_blank">Mempool Faucet</a> - 0.01 BTC</li>
+                            <li><a href="https://coinfaucet.eu/en/btc-testnet/" target="_blank">CoinFaucet</a> - 0.001 BTC</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>Cronos Testnet Resources</h4>
+                        <ul>
+                            <li><a href="https://cronos.org/faucet" target="_blank">Cronos Faucet</a> - 100 CRO (24h cooldown)</li>
+                            <li>Requires Twitter account verification</li>
+                            <li><a href="https://testnet.cronoscan.com/" target="_blank">Cronos Testnet Explorer</a></li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -469,10 +534,11 @@
         // Global variables
         let btcWallet = null;
         let croWallet = null;
+        let currentToken = null;
 
         // Tab switching
         function switchTab(network, tab) {
-            const tabs = document.querySelectorAll(`#${network}-generate, #${network}-import, #${network}-send`);
+            const tabs = document.querySelectorAll(`#${network}-generate, #${network}-import, #${network}-send, #${network}-token`);
             const tabButtons = document.querySelectorAll(`.wallet-card:nth-child(${network === 'btc' ? '1' : '2'}) .tab`);
             
             tabs.forEach(t => t.classList.remove('active'));
@@ -578,11 +644,8 @@
             }
 
             try {
-                console.log('Checking Bitcoin balance for:', btcWallet.address);
                 const response = await fetch(`/api/bitcoin/balance/${btcWallet.address}`);
                 const balance = await response.json();
-                
-                console.log('Bitcoin balance response:', balance);
                 
                 if (balance.success) {
                     document.getElementById('btc-balance').textContent = balance.balance.toFixed(8);
@@ -591,7 +654,6 @@
                     showResult('btc', balance, true);
                 }
             } catch (error) {
-                console.error('Bitcoin balance error:', error);
                 showResult('btc', { error: error.message }, true);
             }
         }
@@ -697,11 +759,8 @@
             }
 
             try {
-                console.log('Checking Cronos balance for:', croWallet.address);
                 const response = await fetch(`/api/cronos/balance/${croWallet.address}`);
                 const balance = await response.json();
-                
-                console.log('Cronos balance response:', balance);
                 
                 if (balance.success) {
                     document.getElementById('cro-balance').textContent = balance.balance.toFixed(6);
@@ -710,7 +769,6 @@
                     showResult('cro', balance, true);
                 }
             } catch (error) {
-                console.error('Cronos balance error:', error);
                 showResult('cro', { error: error.message }, true);
             }
         }
@@ -744,8 +802,132 @@
                 showResult('cro', result, !result.success);
                 
                 if (result.success) {
-                    // Refresh balance after successful send
                     setTimeout(() => checkCronosBalance(), 3000);
+                }
+            } catch (error) {
+                showResult('cro', { error: error.message }, true);
+            }
+        }
+
+        // ERC20 Token functions
+        async function importToken() {
+            if (!croWallet) {
+                showResult('cro', { error: 'No wallet loaded. Please generate or import a Cronos wallet first.' }, true);
+                return;
+            }
+
+            try {
+                const tokenAddress = document.getElementById('token-address').value;
+                
+                if (!tokenAddress) {
+                    showResult('cro', { error: 'Please enter a token contract address' }, true);
+                    return;
+                }
+
+                const response = await fetch('/api/cronos/token/info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tokenAddress })
+                });
+                const tokenInfo = await response.json();
+                
+                if (tokenInfo.success) {
+                    currentToken = tokenInfo;
+                    document.getElementById('token-name').textContent = tokenInfo.name;
+                    document.getElementById('token-symbol').textContent = tokenInfo.symbol;
+                    document.getElementById('token-decimals').textContent = tokenInfo.decimals;
+                    document.getElementById('token-info-box').style.display = 'block';
+                    showResult('cro', tokenInfo);
+                    
+                    // Automatically check balance
+                    await checkTokenBalance();
+                } else {
+                    showResult('cro', tokenInfo, true);
+                }
+            } catch (error) {
+                showResult('cro', { error: error.message }, true);
+            }
+        }
+
+        async function checkTokenBalance() {
+            if (!croWallet) {
+                showResult('cro', { error: 'No wallet loaded. Please generate or import a wallet first.' }, true);
+                return;
+            }
+
+            const tokenAddress = document.getElementById('token-address').value;
+            if (!tokenAddress) {
+                showResult('cro', { error: 'Please enter a token contract address first' }, true);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/cronos/token/balance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        walletAddress: croWallet.address,
+                        tokenAddress: tokenAddress
+                    })
+                });
+                const balance = await response.json();
+                
+                if (balance.success) {
+                    document.getElementById('token-balance').textContent = balance.balance.toFixed(6);
+                    document.getElementById('token-balance-symbol').textContent = balance.symbol;
+                    document.getElementById('token-info-box').style.display = 'block';
+                    showResult('cro', balance);
+                } else {
+                    showResult('cro', balance, true);
+                }
+            } catch (error) {
+                showResult('cro', { error: error.message }, true);
+            }
+        }
+
+        async function sendToken() {
+            if (!croWallet) {
+                showResult('cro', { error: 'No wallet loaded' }, true);
+                return;
+            }
+
+            const tokenAddress = document.getElementById('token-address').value;
+            const toAddress = document.getElementById('token-to-address').value;
+            const amount = document.getElementById('token-amount').value;
+
+            if (!tokenAddress || !toAddress || !amount) {
+                showResult('cro', { error: 'Please fill in all fields: token address, recipient address, and amount' }, true);
+                return;
+            }
+
+            if (parseFloat(amount) <= 0) {
+                showResult('cro', { error: 'Amount must be greater than 0' }, true);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/cronos/token/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fromAddress: croWallet.address,
+                        toAddress: toAddress,
+                        tokenAddress: tokenAddress,
+                        amount: parseFloat(amount),
+                        privateKey: croWallet.privateKey
+                    })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult('cro', result);
+                    // Refresh balances after successful send
+                    setTimeout(() => {
+                        checkCronosBalance();
+                        checkTokenBalance();
+                    }, 3000);
+                } else {
+                    showResult('cro', result, true);
                 }
             } catch (error) {
                 showResult('cro', { error: error.message }, true);

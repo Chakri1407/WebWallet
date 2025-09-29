@@ -1,8 +1,17 @@
-// cronos_wallet.js - Clean Cronos Testnet Wallet using Ethers.js only
-// Install: npm install ethers@6.8.0 bip39@3.0.4
-
+// cronos_wallet.js - Cronos Testnet Wallet with ERC20 Support
 const { ethers } = require('ethers');
 const bip39 = require('bip39');
+
+// Standard ERC20 ABI - only the functions we need
+const ERC20_ABI = [
+  "function name() view returns (string)",
+  "function symbol() view returns (string)",
+  "function decimals() view returns (uint8)",
+  "function balanceOf(address) view returns (uint256)",
+  "function transfer(address to, uint256 amount) returns (bool)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)"
+];
 
 class CronosWallet {
   constructor() {
@@ -19,7 +28,6 @@ class CronosWallet {
     }
   }
 
-  // Generate new wallet
   generateWallet() {
     try {
       const wallet = ethers.Wallet.createRandom();
@@ -37,7 +45,6 @@ class CronosWallet {
     }
   }
 
-  // Generate wallet from seed phrase
   generateFromSeed(mnemonic = null) {
     try {
       const seedPhrase = mnemonic || bip39.generateMnemonic();
@@ -62,10 +69,8 @@ class CronosWallet {
     }
   }
 
-  // Import wallet from private key
   importFromPrivateKey(privateKey) {
     try {
-      // Add 0x prefix if not present
       if (!privateKey.startsWith('0x')) {
         privateKey = '0x' + privateKey;
       }
@@ -84,7 +89,6 @@ class CronosWallet {
     }
   }
 
-  // Get CRO balance
   async getBalance(address) {
     try {
       const balanceWei = await this.provider.getBalance(address);
@@ -102,7 +106,6 @@ class CronosWallet {
     }
   }
 
-  // Get current gas price
   async getGasPrice() {
     try {
       const feeData = await this.provider.getFeeData();
@@ -118,7 +121,6 @@ class CronosWallet {
     }
   }
 
-  // Get transaction count (nonce)
   async getNonce(address) {
     try {
       const nonce = await this.provider.getTransactionCount(address, 'pending');
@@ -128,27 +130,21 @@ class CronosWallet {
     }
   }
 
-  // Send CRO
   async sendCRO(fromAddress, toAddress, amountCRO, privateKey) {
     try {
-      // Create wallet instance
       const wallet = new ethers.Wallet(privateKey, this.provider);
       
-      // Check if wallet address matches fromAddress
       if (wallet.address.toLowerCase() !== fromAddress.toLowerCase()) {
         throw new Error('Private key does not match from address');
       }
 
-      // Get current balance
       const balanceResult = await this.getBalance(fromAddress);
       if (!balanceResult.success) throw new Error('Failed to check balance');
 
-      // Convert amount to wei
       const valueWei = ethers.parseEther(amountCRO.toString());
 
-      // Get fee data
       const feeData = await this.provider.getFeeData();
-      const gasLimit = 21000n; // Standard transfer gas limit
+      const gasLimit = 21000n;
       const gasCost = parseFloat(ethers.formatEther(feeData.gasPrice * gasLimit));
       const totalNeeded = amountCRO + gasCost;
 
@@ -156,7 +152,6 @@ class CronosWallet {
         throw new Error(`Insufficient balance. Need ${totalNeeded.toFixed(6)} CRO, have ${balanceResult.balance.toFixed(6)} CRO`);
       }
 
-      // Create transaction
       const transaction = {
         to: toAddress,
         value: valueWei,
@@ -165,10 +160,7 @@ class CronosWallet {
         chainId: this.chainId
       };
 
-      // Send transaction
       const txResponse = await wallet.sendTransaction(transaction);
-      
-      // Wait for transaction to be mined
       const receipt = await txResponse.wait();
 
       return {
@@ -185,7 +177,189 @@ class CronosWallet {
     }
   }
 
-  // Get transaction status
+  // ========== ERC20 TOKEN FUNCTIONS ==========
+
+  async getTokenInfo(tokenAddress) {
+    try {
+      if (!ethers.isAddress(tokenAddress)) {
+        throw new Error('Invalid token contract address');
+      }
+
+      const contract = new ethers.Contract(tokenAddress, ERC20_ABI, this.provider);
+
+      const [name, symbol, decimals] = await Promise.all([
+        contract.name(),
+        contract.symbol(),
+        contract.decimals()
+      ]);
+
+      return {
+        success: true,
+        tokenAddress: tokenAddress,
+        name: name,
+        symbol: symbol,
+        decimals: Number(decimals),
+        network: 'Cronos Testnet'
+      };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: `Failed to get token info: ${error.message}` 
+      };
+    }
+  }
+
+  async getTokenBalance(walletAddress, tokenAddress) {
+    try {
+      if (!ethers.isAddress(walletAddress)) {
+        throw new Error('Invalid wallet address');
+      }
+      if (!ethers.isAddress(tokenAddress)) {
+        throw new Error('Invalid token contract address');
+      }
+
+      const contract = new ethers.Contract(tokenAddress, ERC20_ABI, this.provider);
+      
+      const [balance, decimals, symbol] = await Promise.all([
+        contract.balanceOf(walletAddress),
+        contract.decimals(),
+        contract.symbol()
+      ]);
+
+      const formattedBalance = ethers.formatUnits(balance, decimals);
+
+      return {
+        success: true,
+        walletAddress: walletAddress,
+        tokenAddress: tokenAddress,
+        balance: parseFloat(formattedBalance),
+        balanceRaw: balance.toString(),
+        decimals: Number(decimals),
+        symbol: symbol
+      };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: `Failed to get token balance: ${error.message}` 
+      };
+    }
+  }
+
+  async sendToken(fromAddress, toAddress, tokenAddress, amount, privateKey) {
+    try {
+      console.log('\n=== ERC20 TOKEN TRANSFER ===');
+      console.log(`From: ${fromAddress}`);
+      console.log(`To: ${toAddress}`);
+      console.log(`Token: ${tokenAddress}`);
+      console.log(`Amount: ${amount}`);
+
+      // Validate addresses
+      if (!ethers.isAddress(fromAddress)) {
+        throw new Error('Invalid from address');
+      }
+      if (!ethers.isAddress(toAddress)) {
+        throw new Error('Invalid to address');
+      }
+      if (!ethers.isAddress(tokenAddress)) {
+        throw new Error('Invalid token contract address');
+      }
+
+      // Create wallet
+      const wallet = new ethers.Wallet(privateKey, this.provider);
+      
+      if (wallet.address.toLowerCase() !== fromAddress.toLowerCase()) {
+        throw new Error('Private key does not match from address');
+      }
+
+      // Get token contract
+      const contract = new ethers.Contract(tokenAddress, ERC20_ABI, wallet);
+      
+      // Get token info
+      const [decimals, symbol, balance] = await Promise.all([
+        contract.decimals(),
+        contract.symbol(),
+        contract.balanceOf(fromAddress)
+      ]);
+
+      console.log(`Token: ${symbol}, Decimals: ${decimals}`);
+
+      // Convert amount to token units
+      const amountInTokenUnits = ethers.parseUnits(amount.toString(), decimals);
+      
+      console.log(`Amount in token units: ${amountInTokenUnits.toString()}`);
+
+      // Check balance
+      if (balance < amountInTokenUnits) {
+        const formattedBalance = ethers.formatUnits(balance, decimals);
+        throw new Error(`Insufficient token balance. Need ${amount} ${symbol}, have ${formattedBalance} ${symbol}`);
+      }
+
+      // Check CRO balance for gas
+      const croBalance = await this.getBalance(fromAddress);
+      if (!croBalance.success) {
+        throw new Error('Failed to check CRO balance for gas');
+      }
+
+      if (croBalance.balance < 0.01) {
+        throw new Error('Insufficient CRO balance for gas fees. Need at least 0.01 CRO');
+      }
+
+      // Estimate gas
+      console.log('Estimating gas...');
+      const gasEstimate = await contract.transfer.estimateGas(toAddress, amountInTokenUnits);
+      const gasLimit = gasEstimate * 120n / 100n; // Add 20% buffer
+      
+      console.log(`Gas estimate: ${gasEstimate.toString()}`);
+      console.log(`Gas limit (with buffer): ${gasLimit.toString()}`);
+
+      // Get gas price
+      const feeData = await this.provider.getFeeData();
+      const gasPrice = feeData.gasPrice;
+      
+      const gasCostWei = gasLimit * gasPrice;
+      const gasCostCRO = parseFloat(ethers.formatEther(gasCostWei));
+      
+      console.log(`Estimated gas cost: ${gasCostCRO.toFixed(6)} CRO`);
+
+      // Send transaction
+      console.log('Sending token transfer transaction...');
+      const tx = await contract.transfer(toAddress, amountInTokenUnits, {
+        gasLimit: gasLimit,
+        gasPrice: gasPrice
+      });
+
+      console.log(`Transaction sent: ${tx.hash}`);
+      console.log('Waiting for confirmation...');
+
+      // Wait for transaction to be mined
+      const receipt = await tx.wait();
+
+      console.log('Transaction confirmed!');
+
+      return {
+        success: true,
+        txHash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+        from: fromAddress,
+        to: toAddress,
+        tokenAddress: tokenAddress,
+        amount: amount,
+        symbol: symbol,
+        gasUsed: receipt.gasUsed.toString(),
+        gasCost: gasCostCRO,
+        explorerUrl: `${this.explorerUrl}/tx/${receipt.hash}`,
+        message: `Successfully sent ${amount} ${symbol}`
+      };
+
+    } catch (error) {
+      console.error('Token transfer failed:', error.message);
+      return { 
+        success: false, 
+        error: error.message 
+      };
+    }
+  }
+
   async getTransactionStatus(txHash) {
     try {
       const tx = await this.provider.getTransaction(txHash);
@@ -214,7 +388,6 @@ class CronosWallet {
     }
   }
 
-  // Get network info
   async getNetworkInfo() {
     try {
       const network = await this.provider.getNetwork();
@@ -235,7 +408,6 @@ class CronosWallet {
     }
   }
 
-  // Get faucet info
   getFaucetInfo() {
     return {
       url: 'https://cronos.org/faucet',
@@ -245,10 +417,9 @@ class CronosWallet {
     };
   }
 
-  // Get MetaMask configuration
   getMetaMaskConfig() {
     return {
-      chainId: '0x152', // 338 in hex
+      chainId: '0x152',
       chainName: 'Cronos Testnet',
       nativeCurrency: {
         name: 'CRO',
@@ -260,7 +431,6 @@ class CronosWallet {
     };
   }
 
-  // Validate address
   isValidAddress(address) {
     return ethers.isAddress(address);
   }

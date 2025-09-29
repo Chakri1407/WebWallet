@@ -298,6 +298,51 @@ app.get('/api/cronos/balance/:address', async (req, res) => {
   }
 }); 
 
+// Get token information
+app.post('/api/cronos/token/info', async (req, res) => {
+  try {
+    console.log('Getting token info...');
+    const { tokenAddress } = req.body;
+    const cronosWallet = new CronosWallet();
+    const tokenInfo = await cronosWallet.getTokenInfo(tokenAddress);
+    console.log('Token info result:', tokenInfo);
+    res.json(tokenInfo);
+  } catch (error) {
+    console.error('Token info error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get token balance
+app.post('/api/cronos/token/balance', async (req, res) => {
+  try {
+    console.log('Getting token balance...');
+    const { walletAddress, tokenAddress } = req.body;
+    const cronosWallet = new CronosWallet();
+    const balance = await cronosWallet.getTokenBalance(walletAddress, tokenAddress);
+    console.log('Token balance result:', balance);
+    res.json(balance);
+  } catch (error) {
+    console.error('Token balance error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Send ERC20 tokens
+app.post('/api/cronos/token/send', async (req, res) => {
+  try {
+    console.log('Sending ERC20 tokens...');
+    const { fromAddress, toAddress, tokenAddress, amount, privateKey } = req.body;
+    const cronosWallet = new CronosWallet();
+    const result = await cronosWallet.sendToken(fromAddress, toAddress, tokenAddress, amount, privateKey);
+    console.log('Token send result:', result.success ? 'Success' : 'Failed');
+    res.json(result);
+  } catch (error) {
+    console.error('Token send error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+}); 
+
 // ============= UTILITY ROUTES =============
 
 // Get supported networks
