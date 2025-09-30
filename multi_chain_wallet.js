@@ -29,7 +29,7 @@ const NETWORKS = {
     chainId: 80002,
     symbol: 'POL',
     decimals: 18,
-    rpcUrl: 'https://polygon-amoy.drpc.org',
+    rpcUrl: 'https://rpc-amoy.polygon.technology',
     explorerUrl: 'https://amoy.polygonscan.com',
     faucets: ['https://faucet.polygon.technology/']
   },
@@ -78,13 +78,13 @@ const NETWORKS = {
     explorerUrl: 'https://testnet.snowtrace.io',
     faucets: ['https://core.app/tools/testnet-faucet/']
   },
-  celo_alfajores: {
-    name: 'Celo Alfajores',
-    chainId: 44787,
+  celo_Sepolia: {
+    name: 'Celo Sepolia',
+    chainId: 11142220,
     symbol: 'CELO',
     decimals: 18,
-    rpcUrl: 'https://alfajores-forno.celo-testnet.org',
-    explorerUrl: 'https://explorer.celo.org/alfajores',
+    rpcUrl: 'https://rpc.ankr.com/celo_sepolia',
+    explorerUrl: 'https://celo-sepolia.blockscout.com/',
     faucets: ['https://faucet.celo.org/alfajores']
   }
 };
