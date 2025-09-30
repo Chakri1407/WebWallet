@@ -22,7 +22,7 @@ console.log('Middleware loaded...');
 // Initialize wallet class
 let MultiChainWallet, NETWORKS;
 try {
-  const walletModule = require('./multi_chain_wallet');
+  const walletModule = require('./EVMChains_wallet');
   MultiChainWallet = walletModule.MultiChainWallet;
   NETWORKS = walletModule.NETWORKS;
   console.log('✅ Multi-chain wallet module loaded successfully');
@@ -43,7 +43,7 @@ app.get('/api/health', (req, res) => {
 
 // Serve frontend
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'multichain_frontend.html'));
+  res.sendFile(path.join(__dirname, 'EVMChains_frontend.html'));
 });
 
 // Get all available networks
