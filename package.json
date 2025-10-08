@@ -1,15 +1,24 @@
 {
-  "name": "bitcoinandcronos",
-  "version": "1.0.0",
+  "name": "multichain-wallet",
+  "version": "2.0.0",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node minimal_server.js"
+    "start": "node EVMChains_server.js",
+    "start-tron": "node Tron_server.js",
+    "start-litecoin": "node Litecoin_server.js"
   },
-  "keywords": [],
+  "keywords": [
+    "blockchain",
+    "wallet",
+    "multichain",
+    "evm",
+    "tron",
+    "litecoin"
+  ],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Multi-chain cryptocurrency wallet supporting EVM chains, Tron, and Litecoin",
   "dependencies": {
     "axios": "^1.7.0",
     "bip32": "^4.0.0",
@@ -20,6 +29,7 @@
     "ecpair": "^2.1.0",
     "ethers": "^6.8.0",
     "express": "^4.18.2",
-    "tiny-secp256k1": "^2.2.3"
+    "tiny-secp256k1": "^2.2.3",
+    "tronweb": "^5.3.2"
   }
 } 
