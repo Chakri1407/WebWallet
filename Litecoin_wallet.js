@@ -25,10 +25,10 @@ const LITECOIN_CONFIG = {
     wif: 0xef
   },
   apiUrl: 'https://api.blockcypher.com/v1/ltc/test3',
-  explorerUrl: 'https://testnet.litecore.io',
+  explorerUrl: 'https://litecoinspace.org/testnet',
   faucets: [
-    'https://testnet.help/en/ltcfaucet/testnet',
-    'https://testnet-faucet.com/ltc-testnet/'
+    'https://cypherfaucet.com/ltc-testnet',
+    'https://litecoinspace.org/testnet'
   ]
 };
 
@@ -119,19 +119,45 @@ class LitecoinWallet {
 
   async getBalance(address) {
     try {
-      const response = await axios.get(`${LITECOIN_CONFIG.apiUrl}/addrs/${address}/balance`);
-      const satoshis = response.data.final_balance;
-      const balance = satoshis / Math.pow(10, LITECOIN_CONFIG.decimals);
+      // Try BlockCypher first
+      try {
+        const response = await axios.get(`${LITECOIN_CONFIG.apiUrl}/addrs/${address}/balance`);
+        const satoshis = response.data.final_balance;
+        const balance = satoshis / Math.pow(10, LITECOIN_CONFIG.decimals);
 
-      return {
-        success: true,
-        address: address,
-        balance: balance,
-        balanceSatoshis: satoshis,
-        unconfirmedBalance: response.data.unconfirmed_balance / Math.pow(10, LITECOIN_CONFIG.decimals),
-        symbol: LITECOIN_CONFIG.symbol,
-        network: LITECOIN_CONFIG.name
-      };
+        return {
+          success: true,
+          address: address,
+          balance: balance,
+          balanceSatoshis: satoshis,
+          unconfirmedBalance: response.data.unconfirmed_balance / Math.pow(10, LITECOIN_CONFIG.decimals),
+          symbol: LITECOIN_CONFIG.symbol,
+          network: LITECOIN_CONFIG.name
+        };
+      } catch (apiError) {
+        // Fallback to alternative API (Blockstream)
+        console.log('BlockCypher failed, trying alternative API...');
+        
+        // Use litecoinspace.org API as fallback
+        const altApiUrl = `https://litecoinspace.org/testnet/api/address/${address}`;
+        const altResponse = await axios.get(altApiUrl);
+        
+        const confirmedBalance = altResponse.data.chain_stats.funded_txo_sum - altResponse.data.chain_stats.spent_txo_sum;
+        const unconfirmedBalance = altResponse.data.mempool_stats.funded_txo_sum - altResponse.data.mempool_stats.spent_txo_sum;
+        
+        const balance = confirmedBalance / Math.pow(10, LITECOIN_CONFIG.decimals);
+        const unconfirmed = unconfirmedBalance / Math.pow(10, LITECOIN_CONFIG.decimals);
+
+        return {
+          success: true,
+          address: address,
+          balance: balance,
+          balanceSatoshis: confirmedBalance,
+          unconfirmedBalance: unconfirmed,
+          symbol: LITECOIN_CONFIG.symbol,
+          network: LITECOIN_CONFIG.name
+        };
+      }
     } catch (error) {
       return { 
         success: false, 
@@ -142,13 +168,35 @@ class LitecoinWallet {
 
   async getUTXOs(address) {
     try {
-      const response = await axios.get(`${LITECOIN_CONFIG.apiUrl}/addrs/${address}?unspentOnly=true`);
-      
-      return {
-        success: true,
-        utxos: response.data.txrefs || [],
-        count: response.data.txrefs?.length || 0
-      };
+      // Try BlockCypher first
+      try {
+        const response = await axios.get(`${LITECOIN_CONFIG.apiUrl}/addrs/${address}?unspentOnly=true`);
+        
+        return {
+          success: true,
+          utxos: response.data.txrefs || [],
+          count: response.data.txrefs?.length || 0
+        };
+      } catch (apiError) {
+        // Fallback to alternative API
+        console.log('BlockCypher UTXO failed, trying alternative...');
+        
+        const altApiUrl = `https://litecoinspace.org/testnet/api/address/${address}/utxo`;
+        const altResponse = await axios.get(altApiUrl);
+        
+        // Convert to BlockCypher format
+        const utxos = altResponse.data.map(utxo => ({
+          tx_hash: utxo.txid,
+          tx_output_n: utxo.vout,
+          value: utxo.value
+        }));
+        
+        return {
+          success: true,
+          utxos: utxos,
+          count: utxos.length
+        };
+      }
     } catch (error) {
       return { 
         success: false, 
@@ -260,8 +308,17 @@ class LitecoinWallet {
 
   async getTransactionHex(txHash) {
     try {
-      const response = await axios.get(`${LITECOIN_CONFIG.apiUrl}/txs/${txHash}?includeHex=true`);
-      return response.data.hex;
+      // Try BlockCypher first
+      try {
+        const response = await axios.get(`${LITECOIN_CONFIG.apiUrl}/txs/${txHash}?includeHex=true`);
+        return response.data.hex;
+      } catch (apiError) {
+        // Fallback to alternative API
+        console.log('BlockCypher tx hex failed, trying alternative...');
+        const altApiUrl = `https://litecoinspace.org/testnet/api/tx/${txHash}/hex`;
+        const altResponse = await axios.get(altApiUrl);
+        return altResponse.data;
+      }
     } catch (error) {
       throw new Error(`Failed to get transaction hex: ${error.message}`);
     }
@@ -269,18 +326,33 @@ class LitecoinWallet {
 
   async broadcastTransaction(txHex) {
     try {
-      const response = await axios.post(`${LITECOIN_CONFIG.apiUrl}/txs/push`, {
-        tx: txHex
-      });
+      // Try BlockCypher first
+      try {
+        const response = await axios.post(`${LITECOIN_CONFIG.apiUrl}/txs/push`, {
+          tx: txHex
+        });
 
-      return {
-        success: true,
-        txHash: response.data.tx.hash
-      };
+        return {
+          success: true,
+          txHash: response.data.tx.hash
+        };
+      } catch (apiError) {
+        // Fallback to alternative API
+        console.log('BlockCypher broadcast failed, trying alternative...');
+        const altApiUrl = 'https://litecoinspace.org/testnet/api/tx';
+        const altResponse = await axios.post(altApiUrl, txHex, {
+          headers: { 'Content-Type': 'text/plain' }
+        });
+        
+        return {
+          success: true,
+          txHash: altResponse.data
+        };
+      }
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.error || error.message
+        error: error.response?.data || error.message
       };
     }
   }

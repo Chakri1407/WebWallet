@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Litecoin Testnet Wallet</title>
+    <title>Solana Devnet Wallet</title>
     <style>
         * {
             margin: 0;
@@ -13,7 +13,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #345995 0%, #5a7ba8 100%);
+            background: linear-gradient(135deg, #9945FF 0%, #14F195 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -57,19 +57,18 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         }
 
-        .warning-banner {
-            background: #fff3cd;
-            border: 2px solid #ffc107;
+        .info-banner {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 20px;
-            color: #856404;
+            color: #0c5460;
         }
 
-        .warning-banner strong {
+        .info-banner strong {
             display: block;
             margin-bottom: 5px;
-            font-size: 16px;
         }
 
         .tabs {
@@ -93,7 +92,7 @@
         }
 
         .tab.active {
-            background: linear-gradient(135deg, #345995, #5a7ba8);
+            background: linear-gradient(135deg, #9945FF, #14F195);
             color: white;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
         }
@@ -128,7 +127,7 @@
 
         .form-group input:focus {
             outline: none;
-            border-color: #345995;
+            border-color: #9945FF;
         }
 
         .btn {
@@ -144,13 +143,13 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #345995, #5a7ba8);
+            background: linear-gradient(135deg, #9945FF, #14F195);
             color: white;
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(52, 89, 149, 0.4);
+            box-shadow: 0 4px 12px rgba(153, 69, 255, 0.4);
         }
 
         .btn-secondary {
@@ -203,7 +202,7 @@
         }
 
         .balance-display {
-            background: linear-gradient(135deg, #345995, #5a7ba8);
+            background: linear-gradient(135deg, #9945FF, #14F195);
             color: white;
             padding: 20px;
             border-radius: 8px;
@@ -222,17 +221,22 @@
             opacity: 0.9;
         }
 
-        .utxo-info {
-            background: #e7f3ff;
-            border: 2px solid #2196f3;
+        .token-balance-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
             border-radius: 8px;
             padding: 15px;
             margin: 15px 0;
         }
 
-        .utxo-info h4 {
-            color: #1976d2;
+        .token-balance-box h4 {
+            color: #856404;
             margin-bottom: 10px;
+        }
+
+        .token-info {
+            font-size: 14px;
+            margin-bottom: 5px;
         }
 
         .result-box {
@@ -330,6 +334,19 @@
             text-decoration: underline;
         }
 
+        .airdrop-section {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .airdrop-section h4 {
+            color: #155724;
+            margin-bottom: 10px;
+        }
+
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 2rem;
@@ -346,25 +363,25 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🪙 Litecoin Testnet Wallet</h1>
-            <p>Test LTC transactions on Litecoin testnet (UTXO-based)</p>
-            <div class="network-badge">Litecoin Testnet | tLTC</div>
+            <h1>⚡ Solana Devnet Wallet</h1>
+            <p>Lightning-fast transactions with SPL token support</p>
+            <div class="network-badge">Solana Devnet | ~0.4s transactions</div>
         </div>
 
-        <div class="warning-banner">
-            <strong>⚠️ No Token Support on Litecoin</strong>
-            Litecoin is a UTXO-based blockchain (like Bitcoin) and does NOT support smart contracts or custom tokens. Only native LTC transactions are available.
+        <div class="info-banner">
+            <strong>💎 SPL Token Support Available!</strong>
+            SPL is Solana's token standard (like ERC20/TRC20). Use the "SPL Tokens" tab to interact with tokens.
         </div>
 
         <div class="wallet-card">
-            <h2>Litecoin Wallet Operations</h2>
+            <h2>Solana Wallet Operations</h2>
 
             <div class="tabs">
                 <div class="tab active" onclick="switchTab('generate')">Generate</div>
                 <div class="tab" onclick="switchTab('import')">Import</div>
                 <div class="tab" onclick="switchTab('receive')">Receive</div>
-                <div class="tab" onclick="switchTab('send')">Send LTC</div>
-                <div class="tab" onclick="switchTab('utxo')">UTXOs</div>
+                <div class="tab" onclick="switchTab('send')">Send SOL</div>
+                <div class="tab" onclick="switchTab('token')">SPL Tokens</div>
             </div>
 
             <!-- Generate Tab -->
@@ -381,8 +398,8 @@
             <!-- Import Tab -->
             <div id="import" class="tab-content">
                 <div class="form-group">
-                    <label>Private Key (WIF format - starts with 'c' for testnet)</label>
-                    <input type="text" id="private-key-input" placeholder="cYourWIFPrivateKey...">
+                    <label>Private Key (Base58 from Phantom or Base64)</label>
+                    <input type="text" id="private-key-input" placeholder="Enter private key from Phantom wallet or Base64 format">
                 </div>
                 <button class="btn btn-primary" onclick="importWallet()">Import Wallet</button>
                 <button class="btn btn-warning" onclick="checkBalance()">Check Balance</button>
@@ -398,48 +415,65 @@
             <!-- Send Tab -->
             <div id="send" class="tab-content">
                 <div class="form-group">
-                    <label>To Address (Litecoin testnet address starting with m or n)</label>
-                    <input type="text" id="send-to-address" placeholder="mYourRecipientAddress...">
+                    <label>To Address (Solana address)</label>
+                    <input type="text" id="send-to-address" placeholder="Recipient Solana address">
                 </div>
                 <div class="form-group">
-                    <label>Amount (LTC)</label>
-                    <input type="number" id="send-amount" step="0.00000001" placeholder="0.1">
+                    <label>Amount (SOL)</label>
+                    <input type="number" id="send-amount" step="0.000000001" placeholder="0.1">
                 </div>
-                <button class="btn btn-success" onclick="sendTransaction()">Send LTC</button>
+                <button class="btn btn-success" onclick="sendTransaction()">Send SOL</button>
                 <button class="btn btn-warning" onclick="checkBalance()">Check Balance</button>
-                <div style="margin-top: 10px; color: #666; font-size: 13px;">
-                    💡 <strong>Note:</strong> Transaction fee is automatically calculated from UTXOs
-                </div>
             </div>
 
-            <!-- UTXO Tab -->
-            <div id="utxo" class="tab-content">
-                <div class="utxo-info">
-                    <h4>What are UTXOs?</h4>
-                    <p style="margin-bottom: 10px;">UTXOs (Unspent Transaction Outputs) are like "coins" in your wallet that can be spent. Litecoin uses the UTXO model, similar to Bitcoin.</p>
+            <!-- SPL Token Tab -->
+            <div id="token" class="tab-content">
+                <h3>SPL Token Information</h3>
+                <div class="form-group">
+                    <label>Token Mint Address</label>
+                    <input type="text" id="token-address" placeholder="Token mint address">
                 </div>
-                <button class="btn btn-info" onclick="checkUTXOs()">Check My UTXOs</button>
-                <div id="utxo-list" style="margin-top: 15px;"></div>
+                <button class="btn btn-info" onclick="getTokenInfo()">Get Token Info</button>
+                <button class="btn btn-warning" onclick="checkTokenBalance()">Check Token Balance</button>
+                
+                <div id="token-info-box" style="display: none;" class="token-balance-box">
+                    <h4>Token Details</h4>
+                    <div class="token-info"><strong>Mint Address:</strong> <span id="token-mint">-</span></div>
+                    <div class="token-info"><strong>Decimals:</strong> <span id="token-decimals">-</span></div>
+                    <div class="token-info"><strong>Supply:</strong> <span id="token-supply">-</span></div>
+                    <div class="token-info"><strong>Your Balance:</strong> <span id="token-balance">0</span></div>
+                </div>
+                
+                <h3 style="margin-top: 20px;">Send SPL Tokens</h3>
+                <div class="form-group">
+                    <label>To Address</label>
+                    <input type="text" id="token-to-address" placeholder="Recipient Solana address">
+                </div>
+                <div class="form-group">
+                    <label>Amount</label>
+                    <input type="number" id="token-amount" step="0.000001" placeholder="100.0">
+                </div>
+                <button class="btn btn-success" onclick="sendTokens()">Send SPL Tokens</button>
             </div>
 
             <!-- Wallet Info Display -->
             <div id="wallet-info" class="wallet-info" style="display: none;">
                 <p><strong>Address:</strong> <span id="wallet-address">-</span> <button class="copy-btn" onclick="copyText('wallet-address')">Copy</button></p>
-                <p><strong>Private Key (WIF):</strong> <span id="wallet-private-key">-</span> <button class="copy-btn" onclick="copyText('wallet-private-key')">Copy</button></p>
+                <p><strong>Private Key:</strong> <span id="wallet-private-key">-</span> <button class="copy-btn" onclick="copyText('wallet-private-key')">Copy</button></p>
                 <div class="balance-display">
-                    <div class="balance-amount" id="balance-amount">0.00000000</div>
-                    <div class="balance-label">tLTC Balance</div>
+                    <div class="balance-amount" id="balance-amount">0.000000000</div>
+                    <div class="balance-label">SOL Balance</div>
                 </div>
-                <p><strong>Network:</strong> Litecoin Testnet</p>
-                <p><strong>Address Type:</strong> <span id="address-type">P2PKH (Legacy)</span></p>
-                <p><strong>Explorer:</strong> <a id="wallet-explorer" href="#" target="_blank" style="color: #345995;">View on Explorer</a></p>
+                <p><strong>Network:</strong> Solana Devnet</p>
+                <p><strong>Explorer:</strong> <a id="wallet-explorer" href="#" target="_blank" style="color: #9945FF;">View on Explorer</a></p>
             </div>
 
-            <!-- Faucet Information -->
+            <!-- Faucet Information (No Airdrop Button) -->
             <div class="faucet-box">
-                <h4>🚰 Get Test LTC</h4>
-                <a href="https://cypherfaucet.com/ltc-testnet" target="_blank">https://cypherfaucet.com/ltc-testnet</a>
-                <a href="https://litecoinspace.org/testnet" target="_blank">https://litecoinspace.org/testnet</a>
+                <h4>🚰 Get Test SOL from Public Faucets</h4>
+                <a href="https://faucet.solana.com" target="_blank">https://faucet.solana.com</a>
+                <a href="https://solfaucet.com" target="_blank">https://solfaucet.com</a>
+                <p style="margin-top: 10px; color: #666;">Visit these faucets to get test SOL for your wallet</p>
             </div>
 
             <!-- Result Box -->
@@ -451,7 +485,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <script>
-        const API_BASE = 'http://localhost:3002/api/litecoin';
+        const API_BASE = 'http://localhost:3003/api/solana';
         let currentWallet = null;
 
         // Tab switching
@@ -489,11 +523,7 @@
             
             document.getElementById('wallet-address').textContent = wallet.address;
             document.getElementById('wallet-private-key').textContent = wallet.privateKey;
-            document.getElementById('wallet-explorer').href = `https://litecoinspace.org/testnet/address/${wallet.address}`;
-            
-            if (wallet.addressType) {
-                document.getElementById('address-type').textContent = wallet.addressType;
-            }
+            document.getElementById('wallet-explorer').href = `https://explorer.solana.com/address/${wallet.address}?cluster=devnet`;
             
             document.getElementById('wallet-info').style.display = 'block';
             
@@ -512,13 +542,13 @@
 
             receiveContent.innerHTML = `
                 <div class="receive-instructions">
-                    <strong>Instructions:</strong> Share this address or QR code to receive tLTC (Litecoin testnet)
+                    <strong>Instructions:</strong> Share this address or QR code to receive SOL or SPL tokens
                 </div>
                 <div class="qr-container">
                     <div id="qr-code" class="qr-code"></div>
                 </div>
                 <div class="address-display">
-                    <strong>Your Litecoin Testnet Address:</strong><br>
+                    <strong>Your Solana Address:</strong><br>
                     ${currentWallet.address}
                     <button class="copy-btn" onclick="copyAddress()">Copy Address</button>
                 </div>
@@ -619,49 +649,10 @@
                 const balance = await response.json();
                 
                 if (balance.success) {
-                    document.getElementById('balance-amount').textContent = balance.balance.toFixed(8);
+                    document.getElementById('balance-amount').textContent = balance.balance.toFixed(9);
                     showResult(balance);
                 } else {
                     showResult(balance, true);
-                }
-            } catch (error) {
-                showResult({ error: error.message }, true);
-            }
-        }
-
-        // Check UTXOs
-        async function checkUTXOs() {
-            if (!currentWallet) {
-                showResult({ error: 'No wallet loaded. Generate or import a wallet first.' }, true);
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_BASE}/utxos/${currentWallet.address}`);
-                const result = await response.json();
-                
-                const utxoList = document.getElementById('utxo-list');
-                
-                if (result.success && result.count > 0) {
-                    let html = `<div class="utxo-info"><h4>Found ${result.count} UTXO(s)</h4>`;
-                    result.utxos.forEach((utxo, index) => {
-                        const amount = (utxo.value / 100000000).toFixed(8);
-                        html += `
-                            <p style="margin: 8px 0; padding: 8px; background: white; border-radius: 4px;">
-                                <strong>UTXO #${index + 1}:</strong> ${amount} LTC<br>
-                                <small>TX: ${utxo.tx_hash.substring(0, 16)}...</small>
-                            </p>
-                        `;
-                    });
-                    html += '</div>';
-                    utxoList.innerHTML = html;
-                    showResult(result);
-                } else if (result.success && result.count === 0) {
-                    utxoList.innerHTML = '<p style="color: #666; padding: 15px; background: #f8f9fa; border-radius: 8px;">No UTXOs found. Get test LTC from a faucet!</p>';
-                    showResult(result);
-                } else {
-                    utxoList.innerHTML = '';
-                    showResult(result, true);
                 }
             } catch (error) {
                 showResult({ error: error.message }, true);
@@ -684,12 +675,7 @@
                     return;
                 }
 
-                if (amount <= 0) {
-                    showResult({ error: 'Amount must be greater than 0' }, true);
-                    return;
-                }
-
-                showResult({ message: 'Sending transaction... This may take a moment.' });
+                showResult({ message: 'Sending transaction... Please wait...' });
 
                 const response = await fetch(`${API_BASE}/send`, {
                     method: 'POST',
@@ -705,10 +691,132 @@
                 showResult(result, !result.success);
                 
                 if (result.success) {
+                    setTimeout(() => checkBalance(), 2000);
+                }
+            } catch (error) {
+                showResult({ error: error.message }, true);
+            }
+        }
+
+        // Get token info
+        async function getTokenInfo() {
+            if (!currentWallet) {
+                showResult({ error: 'No wallet loaded. Please generate or import a wallet first.' }, true);
+                return;
+            }
+
+            try {
+                const tokenAddress = document.getElementById('token-address').value;
+                
+                if (!tokenAddress) {
+                    showResult({ error: 'Please enter a token mint address' }, true);
+                    return;
+                }
+
+                const response = await fetch(`${API_BASE}/token/info`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tokenAddress })
+                });
+                const tokenInfo = await response.json();
+                
+                if (tokenInfo.success) {
+                    document.getElementById('token-mint').textContent = tokenInfo.tokenAddress;
+                    document.getElementById('token-decimals').textContent = tokenInfo.decimals;
+                    document.getElementById('token-supply').textContent = tokenInfo.supply;
+                    document.getElementById('token-info-box').style.display = 'block';
+                    showResult(tokenInfo);
+                    
+                    await checkTokenBalance();
+                } else {
+                    showResult(tokenInfo, true);
+                }
+            } catch (error) {
+                showResult({ error: error.message }, true);
+            }
+        }
+
+        // Check token balance
+        async function checkTokenBalance() {
+            if (!currentWallet) {
+                showResult({ error: 'No wallet loaded. Please generate or import a wallet first.' }, true);
+                return;
+            }
+
+            const tokenAddress = document.getElementById('token-address').value;
+            if (!tokenAddress) {
+                showResult({ error: 'Please enter a token mint address first' }, true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/token/balance`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        walletAddress: currentWallet.address,
+                        tokenAddress: tokenAddress
+                    })
+                });
+                const balance = await response.json();
+                
+                if (balance.success) {
+                    document.getElementById('token-balance').textContent = balance.balance.toFixed(6);
+                    document.getElementById('token-info-box').style.display = 'block';
+                    showResult(balance);
+                } else {
+                    showResult(balance, true);
+                }
+            } catch (error) {
+                showResult({ error: error.message }, true);
+            }
+        }
+
+        // Send tokens
+        async function sendTokens() {
+            if (!currentWallet) {
+                showResult({ error: 'No wallet loaded' }, true);
+                return;
+            }
+
+            const tokenAddress = document.getElementById('token-address').value;
+            const toAddress = document.getElementById('token-to-address').value;
+            const amount = document.getElementById('token-amount').value;
+
+            if (!tokenAddress || !toAddress || !amount) {
+                showResult({ error: 'Please fill in all fields: token address, recipient address, and amount' }, true);
+                return;
+            }
+
+            if (parseFloat(amount) <= 0) {
+                showResult({ error: 'Amount must be greater than 0' }, true);
+                return;
+            }
+
+            try {
+                showResult({ message: 'Sending tokens... This may take a few seconds...' });
+
+                const response = await fetch(`${API_BASE}/token/send`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fromAddress: currentWallet.address,
+                        toAddress: toAddress,
+                        tokenAddress: tokenAddress,
+                        amount: parseFloat(amount),
+                        privateKey: currentWallet.privateKey
+                    })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult(result);
                     setTimeout(() => {
                         checkBalance();
-                        checkUTXOs();
+                        checkTokenBalance();
                     }, 3000);
+                } else {
+                    showResult(result, true);
                 }
             } catch (error) {
                 showResult({ error: error.message }, true);
