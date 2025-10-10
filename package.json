@@ -1,24 +1,26 @@
 {
   "name": "multichain-wallet",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node EVMChains_server.js",
-    "start-tron": "node Tron_server.js",
-    "start-litecoin": "node Litecoin_server.js"
+    "start-evm": "node EVMChains_server.js",
+    "start-non-evm": "node NonEVM_server.js",
+    "start": "node EVMChains_server.js"
   },
   "keywords": [
     "blockchain",
     "wallet",
     "multichain",
     "evm",
+    "bitcoin",
+    "litecoin",
     "tron",
-    "litecoin"
+    "solana"
   ],
   "author": "",
   "license": "ISC",
-  "description": "Multi-chain cryptocurrency wallet supporting EVM chains, Tron, and Litecoin",
+  "description": "Multi-chain cryptocurrency wallet supporting EVM chains, Bitcoin, Litecoin, Tron, and Solana",
   "dependencies": {
     "@solana/spl-token": "^0.4.14",
     "@solana/web3.js": "^1.98.4",
@@ -36,4 +38,4 @@
     "tiny-secp256k1": "^2.2.3",
     "tronweb": "^5.3.2"
   }
-}
+} 

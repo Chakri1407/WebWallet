@@ -1,12 +1,12 @@
-// Solana_server.js - Solana Devnet Wallet Server
+// NonEVM_server.js - Complete Non-EVM Multi-Chain Wallet Server
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
-console.log('Starting Solana wallet server...');
+console.log('Starting Non-EVM multi-chain wallet server...');
 
 const app = express();
-const PORT = 3003;
+const PORT = 3004;
 
 // Middleware
 app.use(cors({
@@ -20,39 +20,57 @@ app.use(express.static('.'));
 console.log('Middleware loaded...');
 
 // Initialize wallet class
-let SolanaWallet, SOLANA_CONFIG;
+let NonEVMWallet, NETWORKS;
 try {
-  const walletModule = require('./Solana_wallet');
-  SolanaWallet = walletModule.SolanaWallet;
-  SOLANA_CONFIG = walletModule.SOLANA_CONFIG;
-  console.log('✅ Solana wallet module loaded successfully');
+  const walletModule = require('./NonEVM_wallet');
+  NonEVMWallet = walletModule.NonEVMWallet;
+  NETWORKS = walletModule.NETWORKS;
+  console.log('✅ Non-EVM wallet module loaded successfully');
 } catch (error) {
   console.error('❌ Error loading wallet module:', error.message);
 }
-
-const wallet = new SolanaWallet();
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ 
     success: true, 
-    message: 'Solana wallet server is running!',
+    message: 'Non-EVM multi-chain wallet server is running!',
     timestamp: new Date().toISOString(),
-    network: SOLANA_CONFIG.name
+    availableNetworks: Object.keys(NETWORKS),
+    totalNetworks: Object.keys(NETWORKS).length
   });
 });
 
 // Serve frontend
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'Solana_frontend.html'));
+  res.sendFile(path.join(__dirname, 'NonEVM_frontend.html'));
+});
+
+// Get all available networks
+app.get('/api/networks', (req, res) => {
+  try {
+    const networks = NonEVMWallet.getAvailableNetworks();
+    res.json({
+      success: true,
+      networks: networks,
+      count: networks.length
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // ============= WALLET GENERATION ROUTES =============
 
-app.post('/api/solana/generate', (req, res) => {
+// Generate new wallet for a specific network
+app.post('/api/:network/generate', (req, res) => {
   try {
-    console.log(`Generating new Solana wallet...`);
+    const { network } = req.params;
+    console.log(`Generating new wallet for ${network}...`);
+    
+    const wallet = new NonEVMWallet(network);
     const result = wallet.generateWallet();
+    
     console.log(`Wallet generated:`, result.success ? '✅ Success' : '❌ Failed');
     res.json(result);
   } catch (error) {
@@ -61,11 +79,16 @@ app.post('/api/solana/generate', (req, res) => {
   }
 });
 
-app.post('/api/solana/generate-from-seed', (req, res) => {
+// Generate wallet from seed phrase
+app.post('/api/:network/generate-from-seed', (req, res) => {
   try {
+    const { network } = req.params;
     const { mnemonic } = req.body;
-    console.log(`Generating wallet from seed...`);
+    console.log(`Generating wallet from seed for ${network}...`);
+    
+    const wallet = new NonEVMWallet(network);
     const result = wallet.generateFromSeed(mnemonic);
+    
     console.log(`Seed wallet generated:`, result.success ? '✅ Success' : '❌ Failed');
     res.json(result);
   } catch (error) {
@@ -74,11 +97,16 @@ app.post('/api/solana/generate-from-seed', (req, res) => {
   }
 });
 
-app.post('/api/solana/import', (req, res) => {
+// Import wallet from private key
+app.post('/api/:network/import', (req, res) => {
   try {
+    const { network } = req.params;
     const { privateKey } = req.body;
-    console.log(`Importing Solana wallet...`);
+    console.log(`Importing wallet for ${network}...`);
+    
+    const wallet = new NonEVMWallet(network);
     const result = wallet.importFromPrivateKey(privateKey);
+    
     console.log(`Wallet imported:`, result.success ? '✅ Success' : '❌ Failed');
     res.json(result);
   } catch (error) {
@@ -89,11 +117,15 @@ app.post('/api/solana/import', (req, res) => {
 
 // ============= BALANCE & INFO ROUTES =============
 
-app.get('/api/solana/balance/:address', async (req, res) => {
+// Get balance
+app.get('/api/:network/balance/:address', async (req, res) => {
   try {
-    const { address } = req.params;
-    console.log(`Checking balance for ${address}...`);
+    const { network, address } = req.params;
+    console.log(`Checking balance for ${address} on ${network}...`);
+    
+    const wallet = new NonEVMWallet(network);
     const balance = await wallet.getBalance(address);
+    
     console.log(`Balance result:`, balance.success ? '✅ Success' : '❌ Failed');
     res.json(balance);
   } catch (error) {
@@ -102,9 +134,31 @@ app.get('/api/solana/balance/:address', async (req, res) => {
   }
 });
 
-app.get('/api/solana/faucet', (req, res) => {
+// Get UTXOs (Bitcoin/Litecoin only)
+app.get('/api/:network/utxos/:address', async (req, res) => {
   try {
+    const { network, address } = req.params;
+    console.log(`Getting UTXOs for ${address} on ${network}...`);
+    
+    const wallet = new NonEVMWallet(network);
+    const utxos = await wallet.getUTXOs(address);
+    
+    console.log(`UTXO result:`, utxos.success ? '✅ Success' : '❌ Failed');
+    res.json(utxos);
+  } catch (error) {
+    console.error(`UTXO error:`, error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get faucet info
+app.get('/api/:network/faucet', (req, res) => {
+  try {
+    const { network } = req.params;
+    
+    const wallet = new NonEVMWallet(network);
     const faucetInfo = wallet.getFaucetInfo();
+    
     res.json({
       success: true,
       ...faucetInfo
@@ -117,11 +171,16 @@ app.get('/api/solana/faucet', (req, res) => {
 
 // ============= TRANSACTION ROUTES =============
 
-app.post('/api/solana/send', async (req, res) => {
+// Send native currency
+app.post('/api/:network/send', async (req, res) => {
   try {
+    const { network } = req.params;
     const { fromAddress, toAddress, amount, privateKey } = req.body;
-    console.log(`Sending SOL transaction...`);
-    const result = await wallet.sendSOL(fromAddress, toAddress, amount, privateKey);
+    console.log(`Sending transaction on ${network}...`);
+    
+    const wallet = new NonEVMWallet(network);
+    const result = await wallet.sendNative(fromAddress, toAddress, amount, privateKey);
+    
     console.log(`Send result:`, result.success ? '✅ Success' : '❌ Failed');
     res.json(result);
   } catch (error) {
@@ -130,11 +189,15 @@ app.post('/api/solana/send', async (req, res) => {
   }
 });
 
-app.get('/api/solana/transaction/:signature', async (req, res) => {
+// Get transaction status
+app.get('/api/:network/transaction/:txHash', async (req, res) => {
   try {
-    const { signature } = req.params;
-    console.log(`Getting transaction ${signature}...`);
-    const transaction = await wallet.getTransactionStatus(signature);
+    const { network, txHash } = req.params;
+    console.log(`Getting transaction ${txHash} on ${network}...`);
+    
+    const wallet = new NonEVMWallet(network);
+    const transaction = await wallet.getTransactionStatus(txHash);
+    
     res.json(transaction);
   } catch (error) {
     console.error(`Transaction status error:`, error.message);
@@ -142,27 +205,18 @@ app.get('/api/solana/transaction/:signature', async (req, res) => {
   }
 });
 
-// Airdrop endpoint (Devnet only!)
-app.post('/api/solana/airdrop', async (req, res) => {
-  try {
-    const { address, amount } = req.body;
-    console.log(`Requesting airdrop for ${address}...`);
-    const result = await wallet.requestAirdrop(address, amount || 1);
-    console.log(`Airdrop result:`, result.success ? '✅ Success' : '❌ Failed');
-    res.json(result);
-  } catch (error) {
-    console.error(`Airdrop error:`, error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+// ============= TOKEN ROUTES (Tron/Solana only) =============
 
-// ============= SPL TOKEN ROUTES =============
-
-app.post('/api/solana/token/info', async (req, res) => {
+// Get token information
+app.post('/api/:network/token/info', async (req, res) => {
   try {
+    const { network } = req.params;
     const { tokenAddress } = req.body;
-    console.log(`Getting SPL token info...`);
+    console.log(`Getting token info on ${network}...`);
+    
+    const wallet = new NonEVMWallet(network);
     const tokenInfo = await wallet.getTokenInfo(tokenAddress);
+    
     console.log(`Token info result:`, tokenInfo.success ? '✅ Success' : '❌ Failed');
     res.json(tokenInfo);
   } catch (error) {
@@ -171,11 +225,16 @@ app.post('/api/solana/token/info', async (req, res) => {
   }
 });
 
-app.post('/api/solana/token/balance', async (req, res) => {
+// Get token balance
+app.post('/api/:network/token/balance', async (req, res) => {
   try {
+    const { network } = req.params;
     const { walletAddress, tokenAddress } = req.body;
-    console.log(`Getting SPL token balance...`);
+    console.log(`Getting token balance on ${network}...`);
+    
+    const wallet = new NonEVMWallet(network);
     const balance = await wallet.getTokenBalance(walletAddress, tokenAddress);
+    
     console.log(`Token balance result:`, balance.success ? '✅ Success' : '❌ Failed');
     res.json(balance);
   } catch (error) {
@@ -184,11 +243,16 @@ app.post('/api/solana/token/balance', async (req, res) => {
   }
 });
 
-app.post('/api/solana/token/send', async (req, res) => {
+// Send tokens
+app.post('/api/:network/token/send', async (req, res) => {
   try {
+    const { network } = req.params;
     const { fromAddress, toAddress, tokenAddress, amount, privateKey } = req.body;
-    console.log(`Sending SPL tokens...`);
+    console.log(`Sending tokens on ${network}...`);
+    
+    const wallet = new NonEVMWallet(network);
     const result = await wallet.sendToken(fromAddress, toAddress, tokenAddress, amount, privateKey);
+    
     console.log(`Token send result:`, result.success ? '✅ Success' : '❌ Failed');
     res.json(result);
   } catch (error) {
@@ -199,10 +263,14 @@ app.post('/api/solana/token/send', async (req, res) => {
 
 // ============= UTILITY ROUTES =============
 
-app.post('/api/solana/validate-address', (req, res) => {
+// Validate address
+app.post('/api/:network/validate-address', (req, res) => {
   try {
+    const { network } = req.params;
     const { address } = req.body;
+    const wallet = new NonEVMWallet(network);
     const isValid = wallet.isValidAddress(address);
+    
     res.json({
       success: true,
       address: address,
@@ -230,37 +298,41 @@ app.use((req, res) => {
   res.status(404).json({
     success: false,
     error: 'Endpoint not found',
-    url: req.url
+    url: req.url,
+    availableEndpoints: '/api/health for full endpoint list'
   });
 });
 
 // Start server
 app.listen(PORT, () => {
-  console.log('\n🚀 SOLANA WALLET SERVER STARTED!');
+  console.log('\n🚀 NON-EVM MULTI-CHAIN WALLET SERVER STARTED!');
   console.log('='.repeat(70));
   console.log(`📡 Server URL: http://localhost:${PORT}`);
   console.log(`🌐 Frontend: http://localhost:${PORT}`);
-  console.log(`🌐 API Base: http://localhost:${PORT}/api/solana`);
   console.log(`📊 Health Check: http://localhost:${PORT}/api/health`);
+  console.log(`📋 Networks Info: http://localhost:${PORT}/api/networks`);
   console.log('');
-  console.log('✅ Network:', SOLANA_CONFIG.name);
-  console.log('   Symbol:', SOLANA_CONFIG.symbol);
+  console.log('✅ Supported Networks:');
+  Object.entries(NETWORKS).forEach(([key, network]) => {
+    console.log(`   • ${network.name} (${network.symbol}) - Type: ${network.type}`);
+  });
   console.log('');
   console.log('🎯 API Endpoints:');
-  console.log('   POST /api/solana/generate');
-  console.log('   POST /api/solana/generate-from-seed');
-  console.log('   POST /api/solana/import');
-  console.log('   GET  /api/solana/balance/:address');
-  console.log('   POST /api/solana/send');
-  console.log('   GET  /api/solana/transaction/:signature');
-  console.log('   POST /api/solana/airdrop (Devnet only!)');
-  console.log('   POST /api/solana/token/info');
-  console.log('   POST /api/solana/token/balance');
-  console.log('   POST /api/solana/token/send');
-  console.log('   POST /api/solana/validate-address');
+  console.log('   POST /api/{network}/generate');
+  console.log('   POST /api/{network}/generate-from-seed');
+  console.log('   POST /api/{network}/import');
+  console.log('   GET  /api/{network}/balance/:address');
+  console.log('   POST /api/{network}/send');
+  console.log('   GET  /api/{network}/transaction/:txHash');
+  console.log('   GET  /api/{network}/utxos/:address (Bitcoin/Litecoin)');
+  console.log('   POST /api/{network}/token/info (Tron/Solana)');
+  console.log('   POST /api/{network}/token/balance (Tron/Solana)');
+  console.log('   POST /api/{network}/token/send (Tron/Solana)');
   console.log('');
-  console.log('💎 SPL Token Support Available!');
-  console.log('🎉 Ready for Solana devnet operations!');
+  console.log('🔗 Network Keys:');
+  console.log('   bitcoin, litecoin, tron, solana');
+  console.log('');
+  console.log('🎉 Ready for non-EVM multi-chain wallet testing!');
   console.log('='.repeat(70));
 });
 
