@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Chain Wallet Tester</title>
+    <title>Multi-Chain Wallet with 1inch DEX</title>
     <style>
         * {
             margin: 0;
@@ -143,7 +143,7 @@
             color: #555;
         }
 
-        .form-group input {
+        .form-group input, .form-group select {
             width: 100%;
             padding: 12px;
             border: 2px solid #e0e0e0;
@@ -152,7 +152,7 @@
             transition: border-color 0.3s ease;
         }
 
-        .form-group input:focus {
+        .form-group input:focus, .form-group select:focus {
             outline: none;
             border-color: #667eea;
         }
@@ -214,6 +214,15 @@
             background: #138496;
         }
 
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
         .wallet-info {
             background: #f8f9fa;
             border-radius: 8px;
@@ -263,6 +272,33 @@
         .token-info {
             font-size: 14px;
             margin-bottom: 5px;
+        }
+
+        .swap-box {
+            background: #fff3e0;
+            border: 2px solid #ff9800;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .swap-box h4 {
+            color: #e65100;
+            margin-bottom: 15px;
+        }
+
+        .swap-rate {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .swap-rate-value {
+            font-weight: bold;
+            color: #e65100;
+            font-size: 1.2rem;
         }
 
         .result-box {
@@ -365,6 +401,45 @@
             text-decoration: underline;
         }
 
+        .token-selector {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 10px;
+            align-items: center;
+            margin: 20px 0;
+        }
+
+        .token-input-group {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .swap-arrow {
+            font-size: 2rem;
+            color: #667eea;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .swap-arrow:hover {
+            transform: rotate(180deg);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 2rem;
@@ -372,14 +447,20 @@
             .network-grid {
                 grid-template-columns: 1fr 1fr;
             }
+            .token-selector {
+                grid-template-columns: 1fr;
+            }
+            .swap-arrow {
+                transform: rotate(90deg);
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Multi-Chain Wallet Tester</h1>
-            <p>Test wallet operations across 8 EVM-compatible testnets with ERC20 support</p>
+            <h1>🔐 Multi-Chain Wallet with 1inch DEX</h1>
+            <p>Test wallet operations and token swaps across 8 EVM-compatible testnets</p>
         </div>
 
         <!-- Network Selector -->
@@ -400,6 +481,7 @@
                 <div class="tab" onclick="switchTab('receive')">Receive</div>
                 <div class="tab" onclick="switchTab('send')">Send</div>
                 <div class="tab" onclick="switchTab('token')">ERC20 Tokens</div>
+                <div class="tab" onclick="switchTab('swap')">🔄 1inch Swap</div>
             </div>
 
             <!-- Generate Tab -->
@@ -474,6 +556,49 @@
                 <button class="btn btn-success" onclick="sendTokens()">Send Tokens</button>
             </div>
 
+            <!-- 1inch Swap Tab -->
+            <div id="swap" class="tab-content">
+                <div class="swap-box">
+                    <h4>🔄 Token Swap via 1inch DEX</h4>
+                    
+                    <div class="token-selector">
+                        <div class="token-input-group">
+                            <label>From Token</label>
+                            <select id="swap-from-token" onchange="updateSwapQuote()">
+                                <option value="">Select token...</option>
+                            </select>
+                            <input type="number" id="swap-from-amount" step="0.000001" placeholder="Amount" onchange="updateSwapQuote()">
+                        </div>
+                        
+                        <div class="swap-arrow" onclick="swapTokens()">⇄</div>
+                        
+                        <div class="token-input-group">
+                            <label>To Token</label>
+                            <select id="swap-to-token" onchange="updateSwapQuote()">
+                                <option value="">Select token...</option>
+                            </select>
+                            <input type="number" id="swap-to-amount" placeholder="Estimated" readonly>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Slippage Tolerance (%)</label>
+                        <input type="number" id="swap-slippage" value="1" min="0.1" max="50" step="0.1">
+                    </div>
+
+                    <div id="swap-quote-box" style="display: none;" class="swap-rate">
+                        <div><strong>Exchange Rate:</strong> <span id="swap-rate" class="swap-rate-value">-</span></div>
+                        <div><strong>Estimated Gas:</strong> <span id="swap-gas">-</span></div>
+                        <div><strong>Price Impact:</strong> <span id="swap-impact">-</span></div>
+                    </div>
+
+                    <button class="btn btn-info" onclick="loadSwapTokens()">Load Available Tokens</button>
+                    <button class="btn btn-warning" onclick="getSwapQuote()">Get Quote</button>
+                    <button class="btn btn-success" onclick="executeSwap()">Execute Swap</button>
+                    <button class="btn btn-danger" onclick="executeSwapWithAutoApproval()">Swap with Auto Approval</button>
+                </div>
+            </div>
+
             <!-- Wallet Info Display -->
             <div id="wallet-info" class="wallet-info" style="display: none;">
                 <p><strong>Address:</strong> <span id="wallet-address">-</span> <button class="copy-btn" onclick="copyText('wallet-address')">Copy</button></p>
@@ -508,6 +633,7 @@
         let currentNetwork = null;
         let currentWallet = null;
         let networks = [];
+        let availableTokens = {};
 
         // Initialize app
         async function init() {
@@ -599,6 +725,10 @@
             
             if (tabName === 'receive') {
                 updateReceiveTab();
+            } else if (tabName === 'swap') {
+                if (currentWallet && currentNetwork) {
+                    loadSwapTokens();
+                }
             }
         }
 
@@ -937,6 +1067,282 @@
                         checkBalance();
                         checkTokenBalance();
                     }, 3000);
+                } else {
+                    showResult(result, true);
+                }
+            } catch (error) {
+                showResult({ error: error.message }, true);
+            }
+        }
+
+        // ============= 1INCH SWAP FUNCTIONS =============
+
+        // Load available tokens for swapping
+        async function loadSwapTokens() {
+            if (!currentNetwork) {
+                showResult({ error: 'Please select a network first' }, true);
+                return;
+            }
+
+            if (!currentWallet) {
+                showResult({ error: 'Please generate or import a wallet first' }, true);
+                return;
+            }
+
+            try {
+                showResult({ message: 'Loading available tokens...' });
+                
+                const response = await fetch(`/api/${currentNetwork.key}/1inch/tokens`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    availableTokens = data.tokens;
+                    
+                    const fromSelect = document.getElementById('swap-from-token');
+                    const toSelect = document.getElementById('swap-to-token');
+                    
+                    fromSelect.innerHTML = '<option value="">Select token...</option>';
+                    toSelect.innerHTML = '<option value="">Select token...</option>';
+                    
+                    // Add native token option
+                    const nativeOption = `<option value="0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee">${currentNetwork.symbol} (Native)</option>`;
+                    fromSelect.innerHTML += nativeOption;
+                    toSelect.innerHTML += nativeOption;
+                    
+                    // Add ERC20 tokens
+                    Object.values(data.tokens).forEach(token => {
+                        const option = `<option value="${token.address}">${token.symbol} - ${token.name}</option>`;
+                        fromSelect.innerHTML += option;
+                        toSelect.innerHTML += option;
+                    });
+                    
+                    showResult({ 
+                        success: true, 
+                        message: `Loaded ${data.tokenCount} tokens for ${currentNetwork.name}`,
+                        tokenCount: data.tokenCount 
+                    });
+                } else {
+                    showResult(data, true);
+                }
+            } catch (error) {
+                showResult({ error: error.message }, true);
+            }
+        }
+
+        // Swap from and to tokens
+        function swapTokens() {
+            const fromSelect = document.getElementById('swap-from-token');
+            const toSelect = document.getElementById('swap-to-token');
+            
+            const temp = fromSelect.value;
+            fromSelect.value = toSelect.value;
+            toSelect.value = temp;
+            
+            updateSwapQuote();
+        }
+
+        // Update swap quote automatically
+        async function updateSwapQuote() {
+            const fromToken = document.getElementById('swap-from-token').value;
+            const toToken = document.getElementById('swap-to-token').value;
+            const amount = document.getElementById('swap-from-amount').value;
+            
+            if (fromToken && toToken && amount && parseFloat(amount) > 0) {
+                await getSwapQuote();
+            }
+        }
+
+        // Get swap quote
+        async function getSwapQuote() {
+            if (!currentNetwork || !currentWallet) {
+                showResult({ error: 'Please select network and wallet first' }, true);
+                return;
+            }
+
+            const fromToken = document.getElementById('swap-from-token').value;
+            const toToken = document.getElementById('swap-to-token').value;
+            const amount = document.getElementById('swap-from-amount').value;
+
+            if (!fromToken || !toToken) {
+                showResult({ error: 'Please select both from and to tokens' }, true);
+                return;
+            }
+
+            if (!amount || parseFloat(amount) <= 0) {
+                showResult({ error: 'Please enter a valid amount' }, true);
+                return;
+            }
+
+            try {
+                showResult({ message: 'Getting swap quote...' });
+
+                // Get token decimals
+                let fromDecimals = 18;
+                if (fromToken.toLowerCase() !== '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') {
+                    const tokenInfo = availableTokens[fromToken.toLowerCase()];
+                    fromDecimals = tokenInfo ? tokenInfo.decimals : 18;
+                }
+
+                // Convert amount to wei
+                const amountWei = (parseFloat(amount) * Math.pow(10, fromDecimals)).toString();
+
+                const response = await fetch(`/api/${currentNetwork.key}/1inch/quote`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fromToken,
+                        toToken,
+                        amount: amountWei
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const toAmount = parseFloat(data.toTokenAmount) / Math.pow(10, data.toToken.decimals);
+                    const rate = toAmount / parseFloat(amount);
+                    
+                    document.getElementById('swap-to-amount').value = toAmount.toFixed(6);
+                    document.getElementById('swap-rate').textContent = `1 ${data.fromToken.symbol} = ${rate.toFixed(6)} ${data.toToken.symbol}`;
+                    document.getElementById('swap-gas').textContent = data.estimatedGas || 'N/A';
+                    document.getElementById('swap-impact').textContent = '< 0.1%';
+                    document.getElementById('swap-quote-box').style.display = 'block';
+                    
+                    showResult(data);
+                } else {
+                    showResult(data, true);
+                }
+            } catch (error) {
+                showResult({ error: error.message }, true);
+            }
+        }
+
+        // Execute swap
+        async function executeSwap() {
+            if (!currentNetwork || !currentWallet) {
+                showResult({ error: 'Please select network and wallet first' }, true);
+                return;
+            }
+
+            const fromToken = document.getElementById('swap-from-token').value;
+            const toToken = document.getElementById('swap-to-token').value;
+            const amount = document.getElementById('swap-from-amount').value;
+            const slippage = document.getElementById('swap-slippage').value;
+
+            if (!fromToken || !toToken || !amount) {
+                showResult({ error: 'Please fill in all swap fields' }, true);
+                return;
+            }
+
+            if (parseFloat(amount) <= 0) {
+                showResult({ error: 'Amount must be greater than 0' }, true);
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to swap ${amount} tokens? This will execute a real transaction.`)) {
+                return;
+            }
+
+            try {
+                showResult({ message: 'Executing swap...' });
+
+                // Get token decimals
+                let fromDecimals = 18;
+                if (fromToken.toLowerCase() !== '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') {
+                    const tokenInfo = availableTokens[fromToken.toLowerCase()];
+                    fromDecimals = tokenInfo ? tokenInfo.decimals : 18;
+                }
+
+                // Convert amount to wei
+                const amountWei = (parseFloat(amount) * Math.pow(10, fromDecimals)).toString();
+
+                const response = await fetch(`/api/${currentNetwork.key}/1inch/swap`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fromToken,
+                        toToken,
+                        amount: amountWei,
+                        privateKey: currentWallet.privateKey,
+                        slippage: parseFloat(slippage)
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult(result);
+                    alert(`Swap successful! Transaction: ${result.txHash}`);
+                    
+                    // Refresh balances
+                    setTimeout(() => checkBalance(), 3000);
+                } else {
+                    showResult(result, true);
+                }
+            } catch (error) {
+                showResult({ error: error.message }, true);
+            }
+        }
+
+        // Execute swap with auto approval
+        async function executeSwapWithAutoApproval() {
+            if (!currentNetwork || !currentWallet) {
+                showResult({ error: 'Please select network and wallet first' }, true);
+                return;
+            }
+
+            const fromToken = document.getElementById('swap-from-token').value;
+            const toToken = document.getElementById('swap-to-token').value;
+            const amount = document.getElementById('swap-from-amount').value;
+            const slippage = document.getElementById('swap-slippage').value;
+
+            if (!fromToken || !toToken || !amount) {
+                showResult({ error: 'Please fill in all swap fields' }, true);
+                return;
+            }
+
+            if (parseFloat(amount) <= 0) {
+                showResult({ error: 'Amount must be greater than 0' }, true);
+                return;
+            }
+
+            if (!confirm(`This will automatically approve tokens if needed and execute the swap. Continue?`)) {
+                return;
+            }
+
+            try {
+                showResult({ message: 'Executing swap with auto approval (this may take a while)...' });
+
+                // Get token decimals
+                let fromDecimals = 18;
+                if (fromToken.toLowerCase() !== '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') {
+                    const tokenInfo = availableTokens[fromToken.toLowerCase()];
+                    fromDecimals = tokenInfo ? tokenInfo.decimals : 18;
+                }
+
+                // Convert amount to wei
+                const amountWei = (parseFloat(amount) * Math.pow(10, fromDecimals)).toString();
+
+                const response = await fetch(`/api/${currentNetwork.key}/1inch/swap-auto`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fromToken,
+                        toToken,
+                        amount: amountWei,
+                        privateKey: currentWallet.privateKey,
+                        slippage: parseFloat(slippage)
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult(result);
+                    alert(`Swap successful! Transaction: ${result.txHash}`);
+                    
+                    // Refresh balances
+                    setTimeout(() => checkBalance(), 3000);
                 } else {
                     showResult(result, true);
                 }
