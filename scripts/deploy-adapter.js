@@ -1,55 +1,68 @@
 const hre = require("hardhat");
 
-/**
- * Deploy OFT Adapter for an existing ERC20 token
- * This needs to be run on each chain where you want to bridge the token
- */
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
   
-  console.log("Deploying OFT Adapter with account:", deployer.address);
+  console.log("============================================");
+  console.log("Deploying OFT Adapter");
+  console.log("============================================");
+  console.log("Deployer:", deployer.address);
   console.log("Network:", hre.network.name);
   console.log("Chain ID:", hre.network.config.chainId);
+  console.log("");
   
-  // GET THESE VALUES:
-  // 1. The existing ERC20 token address on this chain
-  // 2. LayerZero endpoint for this chain (from hardhat.config.js)
-  // 3. Delegate/owner address (usually your wallet)
+  // Read token address from deployment file
+  const fs = require('fs');
+  const tokenFile = `deployments/${hre.network.name}-token.json`;
   
-  const TOKEN_ADDRESS = process.env.TOKEN_ADDRESS || ""; // <-- SET THIS
-  const LZ_ENDPOINT = hre.network.config.layerzeroEndpoint;
-  const DELEGATE = deployer.address;
-  
-  if (!TOKEN_ADDRESS) {
-    console.error("❌ TOKEN_ADDRESS not set! Set it in .env file");
+  if (!fs.existsSync(tokenFile)) {
+    console.error("❌ Token deployment file not found!");
+    console.error(`Please deploy token first on ${hre.network.name}`);
     process.exit(1);
   }
   
-  console.log("\nDeployment Parameters:");
+  const tokenDeployment = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
+  const TOKEN_ADDRESS = tokenDeployment.tokenAddress;
+  const LZ_ENDPOINT = hre.network.config.layerzeroEndpoint;
+  const DELEGATE = deployer.address;
+  
+  console.log("Deployment Parameters:");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("Token Address:", TOKEN_ADDRESS);
   console.log("LZ Endpoint:", LZ_ENDPOINT);
   console.log("Delegate:", DELEGATE);
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+  
+  // Check balance
+  const balance = await hre.ethers.provider.getBalance(deployer.address);
+  console.log("Balance:", hre.ethers.formatEther(balance), "ETH\n");
+  
+  if (balance === 0n) {
+    console.error("❌ ERROR: No balance! Get testnet tokens from faucet first.");
+    process.exit(1);
+  }
+  
+  console.log("Deploying OFT Adapter...\n");
   
   // Deploy OFT Adapter
   const ERC20OFTAdapter = await hre.ethers.getContractFactory("ERC20OFTAdapter");
-  const oftAdapter = await ERC20OFTAdapter.deploy(
+  const adapter = await ERC20OFTAdapter.deploy(
     TOKEN_ADDRESS,
     LZ_ENDPOINT,
     DELEGATE
   );
   
-  await oftAdapter.waitForDeployment();
-  const adapterAddress = await oftAdapter.getAddress();
+  await adapter.waitForDeployment();
+  const adapterAddress = await adapter.getAddress();
   
-  console.log("\n✅ OFT Adapter deployed to:", adapterAddress);
-  console.log("\n📋 Save this address - you'll need it to:");
-  console.log("1. Configure peers on other chains");
-  console.log("2. Approve tokens for bridging");
-  console.log("3. Send cross-chain transactions");
+  console.log("✅ OFT Adapter deployed!");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("📍 Adapter Address:", adapterAddress);
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("\n💾 SAVE THIS ADDRESS!\n");
   
   // Save deployment info
-  const fs = require('fs');
-  const deploymentInfo = {
+  const adapterInfo = {
     network: hre.network.name,
     chainId: hre.network.config.chainId,
     tokenAddress: TOKEN_ADDRESS,
@@ -59,15 +72,36 @@ async function main() {
     timestamp: new Date().toISOString()
   };
   
-  const filename = `deployments/${hre.network.name}-adapter.json`;
-  fs.mkdirSync('deployments', { recursive: true });
-  fs.writeFileSync(filename, JSON.stringify(deploymentInfo, null, 2));
-  console.log(`\n💾 Deployment info saved to ${filename}`);
+  fs.writeFileSync(
+    `deployments/${hre.network.name}-adapter.json`, 
+    JSON.stringify(adapterInfo, null, 2)
+  );
+  
+  console.log(`📁 Deployment info saved to: deployments/${hre.network.name}-adapter.json`);
+  
+  const explorers = {
+    sepolia: `https://sepolia.etherscan.io/address/${adapterAddress}`,
+    amoy: `https://amoy.polygonscan.com/address/${adapterAddress}`,
+    arbitrumSepolia: `https://sepolia.arbiscan.io/address/${adapterAddress}`,
+    baseSepolia: `https://sepolia.basescan.org/address/${adapterAddress}`
+  };
+  
+  if (explorers[hre.network.name]) {
+    console.log("\n🔗 View on Explorer:");
+    console.log(explorers[hre.network.name]);
+  }
+  
+  console.log("\n✨ Adapter deployment complete!");
+  console.log("\n📝 Next Steps:");
+  console.log("1. Deploy adapter on other chain");
+  console.log("2. Run configure-peers.js on both chains");
+  console.log("3. Test the bridge!\n");
 }
 
 main()
   .then(() => process.exit(0))
   .catch((error) => {
+    console.error("\n❌ Deployment failed:");
     console.error(error);
     process.exit(1);
   }); 

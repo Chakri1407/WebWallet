@@ -22,6 +22,7 @@
   "license": "ISC",
   "description": "Multi-chain cryptocurrency wallet with LayerZero cross-chain bridge support",
   "dependencies": {
+    "@layerzerolabs/oft-evm": "^3.2.1",
     "@solana/spl-token": "^0.4.14",
     "@solana/web3.js": "^1.98.4",
     "axios": "^1.7.0",
@@ -41,10 +42,13 @@
   },
   "devDependencies": {
     "@layerzerolabs/lz-definitions": "^3.0.145",
-    "@layerzerolabs/oft-evm": "^3.2.1",
-    "@nomicfoundation/hardhat-ethers": "^3.0.5",
+    "@layerzerolabs/lz-evm-messagelib-v2": "^3.0.145",
+    "@layerzerolabs/lz-evm-protocol-v2": "^3.0.145",
+    "@layerzerolabs/lz-v2-utilities": "^3.0.145",
+    "@layerzerolabs/oapp-evm": "^0.3.3",
+    "@nomicfoundation/hardhat-ethers": "^3.1.2",
     "@openzeppelin/contracts": "^5.4.0",
-    "hardhat": "^2.22.10",
-    "hardhat-deploy": "^0.12.1"
+    "hardhat": "^2.27.0",
+    "hardhat-deploy": "^0.12.4"
   }
 }

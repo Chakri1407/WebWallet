@@ -1,0 +1,9 @@
+{
+  "network": "amoy",
+  "chainId": 80002,
+  "tokenAddress": "0x5F59afBCDD955Caff7083dE00FF0838337D50462",
+  "adapterAddress": "0x1363697B6441591E8e2385fB1B33f8775beC0fdf",
+  "lzEndpoint": "0x6EDCE65403992e310A62460808c4b910D972f10f",
+  "deployer": "0xe8239aFA5Cc7Ec80d27713A60D2E50facbeA3BC0",
+  "timestamp": "2025-11-12T03:22:17.503Z"
+}
