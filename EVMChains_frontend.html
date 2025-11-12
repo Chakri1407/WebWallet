@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Chain Wallet with 1inch DEX</title>
+    <title>Multi-Chain Wallet with LayerZero Bridge</title>
     <style>
         * {
             margin: 0;
@@ -459,8 +459,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔐 Multi-Chain Wallet with 1inch DEX</h1>
-            <p>Test wallet operations and token swaps across 8 EVM-compatible testnets</p>
+            <h1>🔐 Multi-Chain Wallet with LayerZero Bridge</h1>
+            <p>Test wallet operations and cross-chain bridging across EVM-compatible testnets</p>
         </div>
 
         <!-- Network Selector -->
@@ -481,7 +481,7 @@
                 <div class="tab" onclick="switchTab('receive')">Receive</div>
                 <div class="tab" onclick="switchTab('send')">Send</div>
                 <div class="tab" onclick="switchTab('token')">ERC20 Tokens</div>
-                <div class="tab" onclick="switchTab('swap')">🔄 1inch Swap</div>
+                <div class="tab" onclick="switchTab('bridge')">🌉 Bridge</div>
             </div>
 
             <!-- Generate Tab -->
@@ -556,46 +556,86 @@
                 <button class="btn btn-success" onclick="sendTokens()">Send Tokens</button>
             </div>
 
-            <!-- 1inch Swap Tab -->
-            <div id="swap" class="tab-content">
+            <!-- LayerZero Bridge Tab -->
+            <div id="bridge" class="tab-content">
                 <div class="swap-box">
-                    <h4>🔄 Token Swap via 1inch DEX</h4>
+                    <h4>🌉 LayerZero Cross-Chain Bridge</h4>
+                    <p style="margin-bottom: 20px; color: #666;">Bridge your tokens between Sepolia and Amoy testnets</p>
                     
-                    <div class="token-selector">
-                        <div class="token-input-group">
-                            <label>From Token</label>
-                            <select id="swap-from-token" onchange="updateSwapQuote()">
-                                <option value="">Select token...</option>
-                            </select>
-                            <input type="number" id="swap-from-amount" step="0.000001" placeholder="Amount" onchange="updateSwapQuote()">
-                        </div>
-                        
-                        <div class="swap-arrow" onclick="swapTokens()">⇄</div>
-                        
-                        <div class="token-input-group">
-                            <label>To Token</label>
-                            <select id="swap-to-token" onchange="updateSwapQuote()">
-                                <option value="">Select token...</option>
-                            </select>
-                            <input type="number" id="swap-to-amount" placeholder="Estimated" readonly>
-                        </div>
-                    </div>
-
                     <div class="form-group">
-                        <label>Slippage Tolerance (%)</label>
-                        <input type="number" id="swap-slippage" value="1" min="0.1" max="50" step="0.1">
+                        <label>From Network</label>
+                        <select id="bridge-from-network" onchange="updateBridgeNetworks()">
+                            <option value="ethereum_sepolia">Ethereum Sepolia</option>
+                            <option value="polygon_amoy">Polygon Amoy</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>To Network</label>
+                        <select id="bridge-to-network">
+                            <option value="polygon_amoy">Polygon Amoy</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Token Contract Address (on source chain)</label>
+                        <input type="text" id="bridge-token-address" 
+                               placeholder="0x9a7Db83f5A949b70983b3840F7D97c231c51544B"
+                               value="0x9a7Db83f5A949b70983b3840F7D97c231c51544B">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>OFT Adapter Address (on source chain)</label>
+                        <input type="text" id="bridge-adapter-address" 
+                               placeholder="0x6061BC71DD848D0BC6649D69925f979Cb0014777"
+                               value="0x6061BC71DD848D0BC6649D69925f979Cb0014777">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Amount to Bridge</label>
+                        <input type="number" id="bridge-amount" step="0.01" placeholder="10" value="10">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Recipient Address (optional - leave empty to send to yourself)</label>
+                        <input type="text" id="bridge-recipient" placeholder="Leave empty for your own address">
+                    </div>
+                    
+                    <div id="bridge-quote-box" style="display: none;" class="swap-rate">
+                        <div><strong>Bridge Fee:</strong> <span id="bridge-fee" class="swap-rate-value">-</span> ETH/POL</div>
+                        <div><strong>Amount to Receive:</strong> <span id="bridge-receive-amount">-</span> tokens</div>
+                        <div><strong>Estimated Time:</strong> 2-5 minutes</div>
                     </div>
 
-                    <div id="swap-quote-box" style="display: none;" class="swap-rate">
-                        <div><strong>Exchange Rate:</strong> <span id="swap-rate" class="swap-rate-value">-</span></div>
-                        <div><strong>Estimated Gas:</strong> <span id="swap-gas">-</span></div>
-                        <div><strong>Price Impact:</strong> <span id="swap-impact">-</span></div>
+                    <button class="btn btn-info" onclick="getBridgeQuote()">💰 Get Bridge Quote</button>
+                    <button class="btn btn-warning" onclick="approveBridgeTokens()">✅ Approve Tokens</button>
+                    <button class="btn btn-success" onclick="executeBridge()">🌉 Execute Bridge</button>
+                    
+                    <div class="faucet-box" style="margin-top: 20px;">
+                        <h4>📝 Bridge Instructions</h4>
+                        <ol style="margin-left: 20px; line-height: 1.8;">
+                            <li>Select source and destination networks</li>
+                            <li>Enter token and adapter addresses (pre-filled with WWT)</li>
+                            <li>Enter amount to bridge</li>
+                            <li>Click "Get Bridge Quote" to see fees</li>
+                            <li>Click "Approve Tokens" to allow bridge access</li>
+                            <li>Click "Execute Bridge" to start the transfer</li>
+                            <li>Wait 2-5 minutes for tokens to arrive</li>
+                            <li>Track on <a href="https://testnet.layerzeroscan.com" target="_blank">LayerZero Scan</a></li>
+                        </ol>
                     </div>
-
-                    <button class="btn btn-info" onclick="loadSwapTokens()">Load Available Tokens</button>
-                    <button class="btn btn-warning" onclick="getSwapQuote()">Get Quote</button>
-                    <button class="btn btn-success" onclick="executeSwap()">Execute Swap</button>
-                    <button class="btn btn-danger" onclick="executeSwapWithAutoApproval()">Swap with Auto Approval</button>
+                    
+                    <div class="faucet-box" style="background: #fff3cd; border: 1px solid #ffc107; margin-top: 15px;">
+                        <h4>🔗 Your Deployed Addresses</h4>
+                        <p style="margin-bottom: 10px;"><strong>Sepolia WWT Token:</strong><br>
+                           <code style="font-size: 11px; background: #f8f9fa; padding: 4px 8px; border-radius: 4px; display: inline-block;">0x9a7Db83f5A949b70983b3840F7D97c231c51544B</code></p>
+                        <p style="margin-bottom: 10px;"><strong>Sepolia Adapter:</strong><br>
+                           <code style="font-size: 11px; background: #f8f9fa; padding: 4px 8px; border-radius: 4px; display: inline-block;">0x6061BC71DD848D0BC6649D69925f979Cb0014777</code></p>
+                        <p style="margin-bottom: 10px;"><strong>Amoy WWT Token:</strong><br>
+                           <code style="font-size: 11px; background: #f8f9fa; padding: 4px 8px; border-radius: 4px; display: inline-block;">0x5F59afBCDD955Caff7083dE00FF0838337D50462</code></p>
+                        <p style="margin-bottom: 10px;"><strong>Amoy Adapter:</strong><br>
+                           <code style="font-size: 11px; background: #f8f9fa; padding: 4px 8px; border-radius: 4px; display: inline-block;">0x1363697B6441591E8e2385fB1B33f8775beC0fdf</code></p>
+                    </div>
                 </div>
             </div>
 
@@ -633,7 +673,6 @@
         let currentNetwork = null;
         let currentWallet = null;
         let networks = [];
-        let availableTokens = {};
 
         // Initialize app
         async function init() {
@@ -725,10 +764,6 @@
             
             if (tabName === 'receive') {
                 updateReceiveTab();
-            } else if (tabName === 'swap') {
-                if (currentWallet && currentNetwork) {
-                    loadSwapTokens();
-                }
             }
         }
 
@@ -1075,51 +1110,80 @@
             }
         }
 
-        // ============= 1INCH SWAP FUNCTIONS =============
+        // ============= LAYERZERO BRIDGE FUNCTIONS =============
 
-        // Load available tokens for swapping
-        async function loadSwapTokens() {
-            if (!currentNetwork) {
-                showResult({ error: 'Please select a network first' }, true);
-                return;
+        // Update bridge networks when from network changes
+        function updateBridgeNetworks() {
+            const fromNetwork = document.getElementById('bridge-from-network').value;
+            const toNetworkSelect = document.getElementById('bridge-to-network');
+            
+            // Clear current options
+            toNetworkSelect.innerHTML = '';
+            
+            // Add opposite network
+            if (fromNetwork === 'ethereum_sepolia') {
+                toNetworkSelect.innerHTML = '<option value="polygon_amoy">Polygon Amoy</option>';
+                document.getElementById('bridge-token-address').value = '0x9a7Db83f5A949b70983b3840F7D97c231c51544B';
+                document.getElementById('bridge-adapter-address').value = '0x6061BC71DD848D0BC6649D69925f979Cb0014777';
+            } else {
+                toNetworkSelect.innerHTML = '<option value="ethereum_sepolia">Ethereum Sepolia</option>';
+                document.getElementById('bridge-token-address').value = '0x5F59afBCDD955Caff7083dE00FF0838337D50462';
+                document.getElementById('bridge-adapter-address').value = '0x1363697B6441591E8e2385fB1B33f8775beC0fdf';
             }
+        }
 
+        // Get bridge quote
+        async function getBridgeQuote() {
             if (!currentWallet) {
-                showResult({ error: 'Please generate or import a wallet first' }, true);
+                showResult({ error: 'Please import or generate a wallet first' }, true);
                 return;
             }
-
+            
+            const fromNetwork = document.getElementById('bridge-from-network').value;
+            const toNetwork = document.getElementById('bridge-to-network').value;
+            const adapterAddress = document.getElementById('bridge-adapter-address').value;
+            const amount = document.getElementById('bridge-amount').value;
+            const recipient = document.getElementById('bridge-recipient').value || currentWallet.address;
+            
+            if (!adapterAddress || !amount) {
+                showResult({ error: 'Please fill in all required fields' }, true);
+                return;
+            }
+            
+            if (parseFloat(amount) <= 0) {
+                showResult({ error: 'Amount must be greater than 0' }, true);
+                return;
+            }
+            
             try {
-                showResult({ message: 'Loading available tokens...' });
+                showResult({ message: 'Getting bridge quote...' });
                 
-                const response = await fetch(`/api/${currentNetwork.key}/1inch/tokens`);
+                const response = await fetch(`/api/${fromNetwork}/layerzero/quote`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        oftAdapterAddress: adapterAddress,
+                        destinationNetwork: toNetwork,
+                        recipientAddress: recipient,
+                        amount: amount
+                    })
+                });
+                
                 const data = await response.json();
                 
                 if (data.success) {
-                    availableTokens = data.tokens;
+                    document.getElementById('bridge-fee').textContent = parseFloat(data.nativeFee).toFixed(6);
+                    document.getElementById('bridge-receive-amount').textContent = data.amountReceived;
+                    document.getElementById('bridge-quote-box').style.display = 'block';
                     
-                    const fromSelect = document.getElementById('swap-from-token');
-                    const toSelect = document.getElementById('swap-to-token');
-                    
-                    fromSelect.innerHTML = '<option value="">Select token...</option>';
-                    toSelect.innerHTML = '<option value="">Select token...</option>';
-                    
-                    // Add native token option
-                    const nativeOption = `<option value="0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee">${currentNetwork.symbol} (Native)</option>`;
-                    fromSelect.innerHTML += nativeOption;
-                    toSelect.innerHTML += nativeOption;
-                    
-                    // Add ERC20 tokens
-                    Object.values(data.tokens).forEach(token => {
-                        const option = `<option value="${token.address}">${token.symbol} - ${token.name}</option>`;
-                        fromSelect.innerHTML += option;
-                        toSelect.innerHTML += option;
-                    });
-                    
-                    showResult({ 
-                        success: true, 
-                        message: `Loaded ${data.tokenCount} tokens for ${currentNetwork.name}`,
-                        tokenCount: data.tokenCount 
+                    showResult({
+                        success: true,
+                        message: 'Bridge quote received',
+                        from: data.fromNetwork,
+                        to: data.toNetwork,
+                        amount: data.amount,
+                        bridgeFee: data.nativeFee + ' ' + data.symbol,
+                        amountToReceive: data.amountReceived
                     });
                 } else {
                     showResult(data, true);
@@ -1129,86 +1193,57 @@
             }
         }
 
-        // Swap from and to tokens
-        function swapTokens() {
-            const fromSelect = document.getElementById('swap-from-token');
-            const toSelect = document.getElementById('swap-to-token');
-            
-            const temp = fromSelect.value;
-            fromSelect.value = toSelect.value;
-            toSelect.value = temp;
-            
-            updateSwapQuote();
-        }
-
-        // Update swap quote automatically
-        async function updateSwapQuote() {
-            const fromToken = document.getElementById('swap-from-token').value;
-            const toToken = document.getElementById('swap-to-token').value;
-            const amount = document.getElementById('swap-from-amount').value;
-            
-            if (fromToken && toToken && amount && parseFloat(amount) > 0) {
-                await getSwapQuote();
-            }
-        }
-
-        // Get swap quote
-        async function getSwapQuote() {
-            if (!currentNetwork || !currentWallet) {
-                showResult({ error: 'Please select network and wallet first' }, true);
+        // Approve tokens for bridge
+        async function approveBridgeTokens() {
+            if (!currentWallet) {
+                showResult({ error: 'Please import or generate a wallet first' }, true);
                 return;
             }
-
-            const fromToken = document.getElementById('swap-from-token').value;
-            const toToken = document.getElementById('swap-to-token').value;
-            const amount = document.getElementById('swap-from-amount').value;
-
-            if (!fromToken || !toToken) {
-                showResult({ error: 'Please select both from and to tokens' }, true);
+            
+            const fromNetwork = document.getElementById('bridge-from-network').value;
+            const tokenAddress = document.getElementById('bridge-token-address').value;
+            const adapterAddress = document.getElementById('bridge-adapter-address').value;
+            const amount = document.getElementById('bridge-amount').value;
+            
+            if (!tokenAddress || !adapterAddress || !amount) {
+                showResult({ error: 'Please fill in all required fields' }, true);
                 return;
             }
-
-            if (!amount || parseFloat(amount) <= 0) {
-                showResult({ error: 'Please enter a valid amount' }, true);
+            
+            if (parseFloat(amount) <= 0) {
+                showResult({ error: 'Amount must be greater than 0' }, true);
                 return;
             }
-
+            
+            if (!confirm(`Approve ${amount} tokens for bridge adapter?\n\nThis will cost gas fees and is required before bridging.`)) {
+                return;
+            }
+            
             try {
-                showResult({ message: 'Getting swap quote...' });
-
-                // Get token decimals
-                let fromDecimals = 18;
-                if (fromToken.toLowerCase() !== '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') {
-                    const tokenInfo = availableTokens[fromToken.toLowerCase()];
-                    fromDecimals = tokenInfo ? tokenInfo.decimals : 18;
-                }
-
-                // Convert amount to wei
-                const amountWei = (parseFloat(amount) * Math.pow(10, fromDecimals)).toString();
-
-                const response = await fetch(`/api/${currentNetwork.key}/1inch/quote`, {
+                showResult({ message: 'Approving tokens... This may take 20-40 seconds. Please wait...' });
+                
+                const response = await fetch(`/api/${fromNetwork}/layerzero/approve`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        fromToken,
-                        toToken,
-                        amount: amountWei
+                        tokenAddress: tokenAddress,
+                        oftAdapterAddress: adapterAddress,
+                        amount: amount,
+                        privateKey: currentWallet.privateKey
                     })
                 });
-
+                
                 const data = await response.json();
-
+                
                 if (data.success) {
-                    const toAmount = parseFloat(data.toTokenAmount) / Math.pow(10, data.toToken.decimals);
-                    const rate = toAmount / parseFloat(amount);
-                    
-                    document.getElementById('swap-to-amount').value = toAmount.toFixed(6);
-                    document.getElementById('swap-rate').textContent = `1 ${data.fromToken.symbol} = ${rate.toFixed(6)} ${data.toToken.symbol}`;
-                    document.getElementById('swap-gas').textContent = data.estimatedGas || 'N/A';
-                    document.getElementById('swap-impact').textContent = '< 0.1%';
-                    document.getElementById('swap-quote-box').style.display = 'block';
-                    
-                    showResult(data);
+                    showResult({
+                        success: true,
+                        message: '✅ Tokens approved successfully!',
+                        txHash: data.txHash,
+                        explorerUrl: data.explorerUrl,
+                        nextStep: 'Now click "Execute Bridge" to complete the transfer'
+                    });
+                    alert(`✅ Approval Successful!\n\nYou can now execute the bridge transfer.\n\nTransaction: ${data.txHash}`);
                 } else {
                     showResult(data, true);
                 }
@@ -1217,137 +1252,79 @@
             }
         }
 
-        // Execute swap
-        async function executeSwap() {
-            if (!currentNetwork || !currentWallet) {
-                showResult({ error: 'Please select network and wallet first' }, true);
+        // Execute bridge
+        async function executeBridge() {
+            if (!currentWallet) {
+                showResult({ error: 'Please import or generate a wallet first' }, true);
                 return;
             }
-
-            const fromToken = document.getElementById('swap-from-token').value;
-            const toToken = document.getElementById('swap-to-token').value;
-            const amount = document.getElementById('swap-from-amount').value;
-            const slippage = document.getElementById('swap-slippage').value;
-
-            if (!fromToken || !toToken || !amount) {
-                showResult({ error: 'Please fill in all swap fields' }, true);
+            
+            const fromNetwork = document.getElementById('bridge-from-network').value;
+            const toNetwork = document.getElementById('bridge-to-network').value;
+            const adapterAddress = document.getElementById('bridge-adapter-address').value;
+            const amount = document.getElementById('bridge-amount').value;
+            const recipient = document.getElementById('bridge-recipient').value || currentWallet.address;
+            
+            if (!adapterAddress || !amount) {
+                showResult({ error: 'Please fill in all required fields' }, true);
                 return;
             }
-
+            
             if (parseFloat(amount) <= 0) {
                 showResult({ error: 'Amount must be greater than 0' }, true);
                 return;
             }
-
-            if (!confirm(`Are you sure you want to swap ${amount} tokens? This will execute a real transaction.`)) {
+            
+            const confirmMessage = `CONFIRM BRIDGE TRANSACTION\n\nFrom: ${fromNetwork}\nTo: ${toNetwork}\nAmount: ${amount} WWT\nRecipient: ${recipient}\n\nThis will execute a REAL transaction!\nTokens will arrive in 2-5 minutes.\n\nContinue?`;
+            
+            if (!confirm(confirmMessage)) {
                 return;
             }
-
+            
             try {
-                showResult({ message: 'Executing swap...' });
-
-                // Get token decimals
-                let fromDecimals = 18;
-                if (fromToken.toLowerCase() !== '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') {
-                    const tokenInfo = availableTokens[fromToken.toLowerCase()];
-                    fromDecimals = tokenInfo ? tokenInfo.decimals : 18;
-                }
-
-                // Convert amount to wei
-                const amountWei = (parseFloat(amount) * Math.pow(10, fromDecimals)).toString();
-
-                const response = await fetch(`/api/${currentNetwork.key}/1inch/swap`, {
+                showResult({ message: 'Executing bridge... This may take 30-60 seconds. Please wait...' });
+                
+                const response = await fetch(`/api/${fromNetwork}/layerzero/send`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        fromToken,
-                        toToken,
-                        amount: amountWei,
+                        oftAdapterAddress: adapterAddress,
+                        destinationNetwork: toNetwork,
+                        recipientAddress: recipient,
+                        amount: amount,
                         privateKey: currentWallet.privateKey,
-                        slippage: parseFloat(slippage)
+                        slippage: 5
                     })
                 });
-
-                const result = await response.json();
                 
-                if (result.success) {
-                    showResult(result);
-                    alert(`Swap successful! Transaction: ${result.txHash}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const layerzeroScan = `https://testnet.layerzeroscan.com/tx/${data.txHash}`;
                     
-                    // Refresh balances
-                    setTimeout(() => checkBalance(), 3000);
+                    showResult({
+                        success: true,
+                        message: '🎉 Bridge transaction successful!',
+                        txHash: data.txHash,
+                        from: data.from,
+                        to: data.to,
+                        amount: data.amount + ' ' + data.symbol,
+                        bridgeFee: data.bridgeFee,
+                        explorerUrl: data.explorerUrl,
+                        layerzeroScan: layerzeroScan,
+                        note: '⏳ Wait 2-5 minutes for tokens to arrive on destination chain'
+                    });
+                    
+                    const successMessage = `🎉 BRIDGE SUCCESS!\n\nTransaction Hash:\n${data.txHash}\n\nFrom: ${data.from}\nTo: ${data.to}\nAmount: ${data.amount} ${data.symbol}\n\n⏳ Tokens will arrive in 2-5 minutes\n\nTrack your bridge transaction at:\n${layerzeroScan}`;
+                    
+                    alert(successMessage);
                 } else {
-                    showResult(result, true);
+                    showResult(data, true);
+                    alert(`❌ Bridge Failed!\n\n${data.error}`);
                 }
             } catch (error) {
                 showResult({ error: error.message }, true);
-            }
-        }
-
-        // Execute swap with auto approval
-        async function executeSwapWithAutoApproval() {
-            if (!currentNetwork || !currentWallet) {
-                showResult({ error: 'Please select network and wallet first' }, true);
-                return;
-            }
-
-            const fromToken = document.getElementById('swap-from-token').value;
-            const toToken = document.getElementById('swap-to-token').value;
-            const amount = document.getElementById('swap-from-amount').value;
-            const slippage = document.getElementById('swap-slippage').value;
-
-            if (!fromToken || !toToken || !amount) {
-                showResult({ error: 'Please fill in all swap fields' }, true);
-                return;
-            }
-
-            if (parseFloat(amount) <= 0) {
-                showResult({ error: 'Amount must be greater than 0' }, true);
-                return;
-            }
-
-            if (!confirm(`This will automatically approve tokens if needed and execute the swap. Continue?`)) {
-                return;
-            }
-
-            try {
-                showResult({ message: 'Executing swap with auto approval (this may take a while)...' });
-
-                // Get token decimals
-                let fromDecimals = 18;
-                if (fromToken.toLowerCase() !== '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') {
-                    const tokenInfo = availableTokens[fromToken.toLowerCase()];
-                    fromDecimals = tokenInfo ? tokenInfo.decimals : 18;
-                }
-
-                // Convert amount to wei
-                const amountWei = (parseFloat(amount) * Math.pow(10, fromDecimals)).toString();
-
-                const response = await fetch(`/api/${currentNetwork.key}/1inch/swap-auto`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        fromToken,
-                        toToken,
-                        amount: amountWei,
-                        privateKey: currentWallet.privateKey,
-                        slippage: parseFloat(slippage)
-                    })
-                });
-
-                const result = await response.json();
-                
-                if (result.success) {
-                    showResult(result);
-                    alert(`Swap successful! Transaction: ${result.txHash}`);
-                    
-                    // Refresh balances
-                    setTimeout(() => checkBalance(), 3000);
-                } else {
-                    showResult(result, true);
-                }
-            } catch (error) {
-                showResult({ error: error.message }, true);
+                alert(`❌ Error: ${error.message}`);
             }
         }
 

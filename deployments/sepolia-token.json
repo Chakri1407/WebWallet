@@ -1,0 +1,9 @@
+{
+  "network": "sepolia",
+  "chainId": 11155111,
+  "tokenAddress": "0x9a7Db83f5A949b70983b3840F7D97c231c51544B",
+  "tokenName": "Web Wallet Token",
+  "tokenSymbol": "WWT",
+  "deployer": "0xe8239aFA5Cc7Ec80d27713A60D2E50facbeA3BC0",
+  "timestamp": "2025-11-12T02:42:50.437Z"
+}

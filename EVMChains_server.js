@@ -1,4 +1,4 @@
-// multichain_server.js - Complete Multi-Chain Wallet Server
+// EVMChains_server.js - Complete Multi-Chain Wallet Server with LayerZero Bridge
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -37,7 +37,8 @@ app.get('/api/health', (req, res) => {
     message: 'Multi-chain wallet server is running!',
     timestamp: new Date().toISOString(),
     availableNetworks: Object.keys(NETWORKS),
-    totalNetworks: Object.keys(NETWORKS).length
+    totalNetworks: Object.keys(NETWORKS).length,
+    layerzeroEnabled: true
   });
 });
 
@@ -276,6 +277,110 @@ app.post('/api/:network/token/send', async (req, res) => {
   }
 });
 
+// ============= LAYERZERO CROSS-CHAIN BRIDGE ROUTES =============
+
+// Get LayerZero supported networks
+app.get('/api/layerzero/networks', (req, res) => {
+  try {
+    const networks = MultiChainWallet.getLayerZeroSupportedNetworks();
+    res.json({
+      success: true,
+      networks: networks,
+      count: networks.length
+    });
+  } catch (error) {
+    console.error('LayerZero networks error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get available destination networks for a source network
+app.get('/api/:network/layerzero/destinations', async (req, res) => {
+  try {
+    const { network } = req.params;
+    console.log(`Getting LayerZero destinations for ${network}...`);
+    
+    const wallet = new MultiChainWallet(network);
+    const result = await wallet.getLayerZeroSupportedNetworks();
+    
+    res.json(result);
+  } catch (error) {
+    console.error('LayerZero destinations error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get cross-chain transfer quote
+app.post('/api/:network/layerzero/quote', async (req, res) => {
+  try {
+    const { network } = req.params;
+    const { oftAdapterAddress, destinationNetwork, recipientAddress, amount } = req.body;
+    console.log(`Getting LayerZero quote from ${network} to ${destinationNetwork}...`);
+    
+    const wallet = new MultiChainWallet(network);
+    const result = await wallet.quoteCrossChainTransfer(
+      oftAdapterAddress,
+      destinationNetwork,
+      recipientAddress,
+      amount
+    );
+    
+    console.log('Quote result:', result.success ? '✅ Success' : '❌ Failed');
+    res.json(result);
+  } catch (error) {
+    console.error('LayerZero quote error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Approve tokens for cross-chain transfer
+app.post('/api/:network/layerzero/approve', async (req, res) => {
+  try {
+    const { network } = req.params;
+    const { tokenAddress, oftAdapterAddress, amount, privateKey } = req.body;
+    console.log(`Approving tokens for LayerZero on ${network}...`);
+    
+    const wallet = new MultiChainWallet(network);
+    const result = await wallet.approveTokenForCrossChain(
+      tokenAddress,
+      oftAdapterAddress,
+      amount,
+      privateKey
+    );
+    
+    console.log('Approval result:', result.success ? '✅ Success' : '❌ Failed');
+    res.json(result);
+  } catch (error) {
+    console.error('LayerZero approval error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Execute cross-chain token transfer
+app.post('/api/:network/layerzero/send', async (req, res) => {
+  try {
+    const { network } = req.params;
+    const { oftAdapterAddress, destinationNetwork, recipientAddress, amount, privateKey, slippage } = req.body;
+    console.log(`Executing LayerZero bridge from ${network} to ${destinationNetwork}...`);
+    
+    const wallet = new MultiChainWallet(network);
+    const result = await wallet.sendCrossChainToken(
+      oftAdapterAddress,
+      destinationNetwork,
+      recipientAddress,
+      amount,
+      privateKey,
+      slippage || 5
+    );
+    
+    console.log('Bridge result:', result.success ? '✅ Success' : '❌ Failed');
+    res.json(result);
+  } catch (error) {
+    console.error('LayerZero send error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ============= UTILITY ROUTES =============
 
 // Get MetaMask configuration
@@ -337,36 +442,46 @@ app.use((req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log('\n🚀 MULTI-CHAIN WALLET SERVER STARTED!');
+  console.log('\n🚀 MULTI-CHAIN WALLET SERVER WITH LAYERZERO STARTED!');
   console.log('='.repeat(70));
   console.log(`📡 Server URL: http://localhost:${PORT}`);
   console.log(`🌐 Frontend: http://localhost:${PORT}`);
   console.log(`📊 Health Check: http://localhost:${PORT}/api/health`);
   console.log(`📋 Networks Info: http://localhost:${PORT}/api/networks`);
+  console.log(`🌉 LayerZero Networks: http://localhost:${PORT}/api/layerzero/networks`);
   console.log('');
   console.log('✅ Supported Networks:');
   Object.entries(NETWORKS).forEach(([key, network]) => {
-    console.log(`   • ${network.name} (${network.symbol}) - Chain ID: ${network.chainId}`);
+    const lzIndicator = network.layerzeroSupported ? '🌉' : '  ';
+    console.log(`   ${lzIndicator} ${network.name} (${network.symbol}) - Chain ID: ${network.chainId}`);
   });
   console.log('');
   console.log('🎯 API Endpoints:');
+  console.log('   Wallet:');
   console.log('   POST /api/{network}/generate');
   console.log('   POST /api/{network}/generate-from-seed');
   console.log('   POST /api/{network}/import');
   console.log('   GET  /api/{network}/balance/:address');
   console.log('   POST /api/{network}/send');
-  console.log('   GET  /api/{network}/transaction/:txHash');
-  console.log('   GET  /api/{network}/info');
+  console.log('');
+  console.log('   Tokens:');
   console.log('   POST /api/{network}/token/info');
   console.log('   POST /api/{network}/token/balance');
   console.log('   POST /api/{network}/token/send');
+  console.log('');
+  console.log('   LayerZero Bridge:');
+  console.log('   GET  /api/layerzero/networks');
+  console.log('   GET  /api/{network}/layerzero/destinations');
+  console.log('   POST /api/{network}/layerzero/quote');
+  console.log('   POST /api/{network}/layerzero/approve');
+  console.log('   POST /api/{network}/layerzero/send');
   console.log('');
   console.log('🔗 Network Keys:');
   console.log('   ethereum_sepolia, polygon_amoy, arbitrum_sepolia,');
   console.log('   cronos_testnet, base_sepolia, bnb_testnet,');
   console.log('   avalanche_fuji, celo_alfajores');
   console.log('');
-  console.log('🎉 Ready for multi-chain wallet testing!');
+  console.log('🎉 Ready for multi-chain wallet and cross-chain bridge testing!');
   console.log('='.repeat(70));
 });
 

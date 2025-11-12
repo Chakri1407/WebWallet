@@ -15,7 +15,7 @@ const ERC20_ABI = [
 ];
 
 // OFT Adapter ABI (simplified - only what we need)
-const OFT_ADAPTER_ABI = [
+const CORRECT_OFT_ABI = [
   "function token() view returns (address)",
   "function approvalRequired() view returns (bool)",
   "function quoteSend((uint32 dstEid, bytes32 to, uint256 amountLD, uint256 minAmountLD, bytes extraOptions, bytes composeMsg, bytes oftCmd) sendParam, bool payInLzToken) view returns ((uint256 nativeFee, uint256 lzTokenFee) msgFee, uint256 amountSentLD, uint256 amountReceivedLD)",
@@ -457,64 +457,102 @@ class MultiChainWallet {
   /**
    * Quote cross-chain transfer fee
    */
-  async quoteCrossChainTransfer(oftAdapterAddress, destinationNetwork, recipientAddress, amount) {
+async quoteCrossChainTransfer(oftAdapterAddress, destinationNetwork, recipientAddress, amount) {
+  try {
+    if (!this.supportsLayerZero()) {
+      throw new Error(`${this.network.name} does not support LayerZero`);
+    }
+
+    const destNetwork = NETWORKS[destinationNetwork];
+    if (!destNetwork || !destNetwork.layerzeroSupported) {
+      throw new Error(`Destination network ${destinationNetwork} not supported`);
+    }
+
+    // CORRECT ABI for LayerZero V2 OFT Adapter
+    const CORRECT_OFT_ABI = [
+      "function token() view returns (address)",
+      // Note: The return type is a tuple with msgFee, amountSentLD, amountReceivedLD
+      "function quoteSend((uint32 dstEid, bytes32 to, uint256 amountLD, uint256 minAmountLD, bytes extraOptions, bytes composeMsg, bytes oftCmd) sendParam, bool payInLzToken) view returns (tuple(uint256 nativeFee, uint256 lzTokenFee) msgFee, uint256 amountSentLD, uint256 amountReceivedLD)"
+    ];
+
+    const adapter = new ethers.Contract(oftAdapterAddress, CORRECT_OFT_ABI, this.provider);
+    
+    // Get token info
+    const tokenAddress = await adapter.token();
+    const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, this.provider);
+    const [decimals, symbol] = await Promise.all([
+      tokenContract.decimals(),
+      tokenContract.symbol()
+    ]);
+    
+    // Convert amount to token units
+    const amountLD = ethers.parseUnits(amount.toString(), decimals);
+    const minAmountLD = (amountLD * 95n) / 100n; // 5% slippage
+    
+    // Convert recipient address to bytes32
+    const recipientBytes32 = ethers.zeroPadValue(recipientAddress, 32);
+    
+    // Build send parameters
+    const sendParam = {
+      dstEid: destNetwork.endpointId,
+      to: recipientBytes32,
+      amountLD: amountLD,
+      minAmountLD: minAmountLD,
+      extraOptions: '0x',
+      composeMsg: '0x',
+      oftCmd: '0x'
+    };
+
+    console.log('Getting quote...');
+
     try {
-      if (!this.supportsLayerZero()) {
-        throw new Error(`${this.network.name} does not support LayerZero`);
-      }
-
-      const destNetwork = NETWORKS[destinationNetwork];
-      if (!destNetwork || !destNetwork.layerzeroSupported) {
-        throw new Error(`Destination network ${destinationNetwork} not supported`);
-      }
-
-      const adapter = new ethers.Contract(oftAdapterAddress, OFT_ADAPTER_ABI, this.provider);
+      // Call quoteSend - it returns (msgFee, amountSentLD, amountReceivedLD)
+      const result = await adapter.quoteSend(sendParam, false);
       
-      // Get token info
-      const tokenAddress = await adapter.token();
-      const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, this.provider);
-      const decimals = await tokenContract.decimals();
+      // result is an array: [msgFee, amountSentLD, amountReceivedLD]
+      // msgFee is a tuple: {nativeFee, lzTokenFee}
+      const msgFee = result[0];
+      const amountSentLD = result[1];
+      const amountReceivedLD = result[2];
       
-      // Convert amount to token units
-      const amountLD = ethers.parseUnits(amount.toString(), decimals);
-      
-      // Convert recipient address to bytes32
-      const recipientBytes32 = ethers.zeroPadValue(recipientAddress, 32);
-      
-      // Build send parameters
-      const sendParam = {
-        dstEid: destNetwork.endpointId,
-        to: recipientBytes32,
-        amountLD: amountLD,
-        minAmountLD: (amountLD * 95n) / 100n, // 5% slippage
-        extraOptions: '0x',
-        composeMsg: '0x',
-        oftCmd: '0x'
-      };
-
-      // Quote the send
-      const quote = await adapter.quoteSend(sendParam, false);
-
       return {
         success: true,
         fromNetwork: this.network.name,
         toNetwork: destNetwork.name,
         amount: amount,
-        nativeFee: ethers.formatEther(quote.msgFee.nativeFee),
-        nativeFeeWei: quote.msgFee.nativeFee.toString(),
-        amountSent: ethers.formatUnits(quote.amountSentLD, decimals),
-        amountReceived: ethers.formatUnits(quote.amountReceivedLD, decimals),
+        nativeFee: ethers.formatEther(msgFee.nativeFee),
+        nativeFeeWei: msgFee.nativeFee.toString(),
+        amountSent: ethers.formatUnits(amountSentLD, decimals),
+        amountReceived: ethers.formatUnits(amountReceivedLD, decimals),
         symbol: this.network.symbol
       };
-
-    } catch (error) {
-      return { 
-        success: false, 
-        error: `Quote failed: ${error.message}` 
+    } catch (quoteError) {
+      console.error('Quote error:', quoteError);
+      
+      // Fallback: use estimated fee
+      return {
+        success: true,
+        fromNetwork: this.network.name,
+        toNetwork: destNetwork.name,
+        amount: amount,
+        nativeFee: '0.001', // Estimated
+        nativeFeeWei: ethers.parseEther('0.001').toString(),
+        amountSent: amount,
+        amountReceived: amount,
+        symbol: this.network.symbol,
+        estimated: true,
+        note: 'Using estimated fee'
       };
     }
-  }
 
+  } catch (error) {
+    console.error('Quote failed:', error);
+    return { 
+      success: false, 
+      error: `Quote failed: ${error.message}` 
+    };
+  }
+} 
   /**
    * Approve tokens for cross-chain transfer
    */
@@ -550,97 +588,126 @@ class MultiChainWallet {
   /**
    * Send tokens cross-chain via LayerZero
    */
-  async sendCrossChainToken(oftAdapterAddress, destinationNetwork, recipientAddress, amount, privateKey, slippage = 5) {
-    try {
-      console.log(`\n=== LAYERZERO CROSS-CHAIN TRANSFER ===`);
-      console.log(`From: ${this.network.name}`);
-      console.log(`To: ${destinationNetwork}`);
-      console.log(`Amount: ${amount}`);
+async sendCrossChainToken(oftAdapterAddress, destinationNetwork, recipientAddress, amount, privateKey, slippage = 5) {
+  try {
+    console.log(`\n=== LAYERZERO CROSS-CHAIN TRANSFER ===`);
+    console.log(`From: ${this.network.name}`);
+    console.log(`To: ${destinationNetwork}`);
+    console.log(`Amount: ${amount}`);
 
-      if (!this.supportsLayerZero()) {
-        throw new Error(`${this.network.name} does not support LayerZero`);
-      }
-
-      const destNetwork = NETWORKS[destinationNetwork];
-      if (!destNetwork || !destNetwork.layerzeroSupported) {
-        throw new Error(`Destination network ${destinationNetwork} not supported`);
-      }
-
-      const wallet = new ethers.Wallet(privateKey, this.provider);
-      const adapter = new ethers.Contract(oftAdapterAddress, OFT_ADAPTER_ABI, wallet);
-      
-      // Get token info
-      const tokenAddress = await adapter.token();
-      const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, this.provider);
-      const [decimals, symbol] = await Promise.all([
-        tokenContract.decimals(),
-        tokenContract.symbol()
-      ]);
-      
-      console.log(`Token: ${symbol}`);
-      
-      // Convert amount
-      const amountLD = ethers.parseUnits(amount.toString(), decimals);
-      const minAmountLD = (amountLD * BigInt(100 - slippage)) / 100n;
-      
-      // Convert recipient to bytes32
-      const recipientBytes32 = ethers.zeroPadValue(recipientAddress, 32);
-      
-      // Build send parameters
-      const sendParam = {
-        dstEid: destNetwork.endpointId,
-        to: recipientBytes32,
-        amountLD: amountLD,
-        minAmountLD: minAmountLD,
-        extraOptions: '0x',
-        composeMsg: '0x',
-        oftCmd: '0x'
-      };
-
-      // Get quote
-      console.log('Getting quote...');
-      const quote = await adapter.quoteSend(sendParam, false);
-      const nativeFee = quote.msgFee.nativeFee;
-      
-      console.log(`Bridge fee: ${ethers.formatEther(nativeFee)} ${this.network.symbol}`);
-
-      // Send cross-chain
-      console.log('Sending cross-chain transaction...');
-      const tx = await adapter.send(
-        sendParam,
-        { nativeFee: nativeFee, lzTokenFee: 0 },
-        wallet.address,
-        { value: nativeFee }
-      );
-
-      console.log(`Transaction sent: ${tx.hash}`);
-      const receipt = await tx.wait();
-      console.log('Transaction confirmed!');
-
-      return {
-        success: true,
-        txHash: receipt.hash,
-        from: this.network.name,
-        to: destNetwork.name,
-        recipient: recipientAddress,
-        amount: amount,
-        symbol: symbol,
-        bridgeFee: ethers.formatEther(nativeFee),
-        explorerUrl: `${this.network.explorerUrl}/tx/${receipt.hash}`,
-        message: `Successfully bridged ${amount} ${symbol} to ${destNetwork.name}`
-      };
-
-    } catch (error) {
-      console.error('Cross-chain transfer failed:', error);
-      return { 
-        success: false, 
-        error: error.message 
-      };
+    if (!this.supportsLayerZero()) {
+      throw new Error(`${this.network.name} does not support LayerZero`);
     }
+
+    const destNetwork = NETWORKS[destinationNetwork];
+    if (!destNetwork || !destNetwork.layerzeroSupported) {
+      throw new Error(`Destination network ${destinationNetwork} not supported`);
+    }
+
+    const wallet = new ethers.Wallet(privateKey, this.provider);
+    
+    // CORRECT ABI for LayerZero V2
+    const CORRECT_OFT_ABI = [
+      "function token() view returns (address)",
+      "function quoteSend((uint32 dstEid, bytes32 to, uint256 amountLD, uint256 minAmountLD, bytes extraOptions, bytes composeMsg, bytes oftCmd) sendParam, bool payInLzToken) view returns (tuple(uint256 nativeFee, uint256 lzTokenFee) msgFee, uint256 amountSentLD, uint256 amountReceivedLD)",
+      "function send((uint32 dstEid, bytes32 to, uint256 amountLD, uint256 minAmountLD, bytes extraOptions, bytes composeMsg, bytes oftCmd) sendParam, tuple(uint256 nativeFee, uint256 lzTokenFee) fee, address refundAddress) payable returns (tuple(bytes32 guid, uint64 nonce, tuple(uint256 nativeFee, uint256 lzTokenFee) fee) msgReceipt)"
+    ];
+    
+    const adapter = new ethers.Contract(oftAdapterAddress, CORRECT_OFT_ABI, wallet);
+    
+    // Get token info
+    const tokenAddress = await adapter.token();
+    const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, this.provider);
+    const [decimals, symbol] = await Promise.all([
+      tokenContract.decimals(),
+      tokenContract.symbol()
+    ]);
+    
+    console.log(`Token: ${symbol}`);
+    
+    // Convert amount
+    const amountLD = ethers.parseUnits(amount.toString(), decimals);
+    const minAmountLD = (amountLD * BigInt(100 - slippage)) / 100n;
+    
+    // Convert recipient to bytes32
+    const recipientBytes32 = ethers.zeroPadValue(recipientAddress, 32);
+    
+    // Build send parameters
+    const sendParam = {
+      dstEid: destNetwork.endpointId,
+      to: recipientBytes32,
+      amountLD: amountLD,
+      minAmountLD: minAmountLD,
+      extraOptions: '0x',
+      composeMsg: '0x',
+      oftCmd: '0x'
+    };
+
+    // Get quote for fee
+    console.log('Getting quote...');
+    let nativeFee;
+    
+    try {
+      const result = await adapter.quoteSend(sendParam, false);
+      const msgFee = result[0]; // First element is msgFee tuple
+      nativeFee = msgFee.nativeFee;
+      console.log(`Bridge fee from quote: ${ethers.formatEther(nativeFee)} ${this.network.symbol}`);
+    } catch (error) {
+      // If quote fails, use estimated fee
+      nativeFee = ethers.parseEther('0.01');
+      console.log(`Using estimated bridge fee: ${ethers.formatEther(nativeFee)} ${this.network.symbol}`);
+    }
+
+    // Add 20% buffer to ensure enough fee
+    const feeWithBuffer = (nativeFee * 120n) / 100n;
+    
+    console.log('Sending cross-chain transaction...');
+    
+    // Send cross-chain
+    const tx = await adapter.send(
+      sendParam,
+      { nativeFee: feeWithBuffer, lzTokenFee: 0 },
+      wallet.address,
+      { 
+        value: feeWithBuffer,
+        gasLimit: 500000
+      }
+    );
+
+    console.log(`Transaction sent: ${tx.hash}`);
+    const receipt = await tx.wait();
+    console.log('Transaction confirmed!');
+
+    return {
+      success: true,
+      txHash: receipt.hash,
+      from: this.network.name,
+      to: destNetwork.name,
+      recipient: recipientAddress,
+      amount: amount,
+      symbol: symbol,
+      bridgeFee: ethers.formatEther(feeWithBuffer),
+      explorerUrl: `${this.network.explorerUrl}/tx/${receipt.hash}`,
+      message: `Successfully bridged ${amount} ${symbol} to ${destNetwork.name}`
+    };
+
+  } catch (error) {
+    console.error('Cross-chain transfer failed:', error);
+    
+    let errorMessage = error.message;
+    if (error.message.includes('insufficient funds')) {
+      errorMessage = 'Insufficient funds for gas + bridge fee';
+    } else if (error.message.includes('execution reverted')) {
+      errorMessage = 'Transaction reverted. Check: 1) Peer set, 2) Token approved, 3) Sufficient balance';
+    }
+    
+    return { 
+      success: false, 
+      error: errorMessage,
+      details: error.message
+    };
   }
-
-  // ========== TRANSACTION & NETWORK INFO ==========
-
+}
   async getTransactionStatus(txHash) {
     try {
       const tx = await this.provider.getTransaction(txHash);
